@@ -7,6 +7,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 import tempfile
 import shutil # For removing directory
+# import time # 新增：用于引入延迟 # 移除此行
 
 # --- Helper Function to Check Ollama Service ---
 def is_ollama_running():
@@ -61,7 +62,7 @@ translations = {
         "upload_docs_help": "Please upload documents containing selectable text. Scanned PDFs may not be able to extract text.",
         "process_uploaded_files_button": "Process Uploaded Files",
         "clear_knowledge_base_button": "Clear Knowledge Base",
-        "clear_knowledge_base_success": "Knowledge base cleared.",
+        "clear_knowledge_base_success": "Knowledge base cleared!", # Updated message
         "clear_knowledge_base_failed": "Failed to clear knowledge base: {e}",
         "knowledge_base_empty_warning": "Knowledge base not initialized or already empty.",
         "offline_app_info": "💡 This is a completely offline application. All data processing is done on your local device and is not uploaded to any server.",
@@ -93,7 +94,8 @@ translations = {
         "language_switch_en": "English",
         "language_switch_zh": "中文",
         "select_assistant_mode": "Select Assistant Mode",
-        "select_language": "Select Language / 选择语言"
+        "select_language": "Select Language / 选择语言",
+        "restart_app_to_clear_message": "To fully clear the knowledge base files from disk, please restart the application."
     },
     "zh": {
         "page_title": "本地智慧助手",
@@ -137,7 +139,7 @@ translations = {
         "upload_docs_help": "请上传包含可选择文本的文档。扫描版PDF可能无法提取文本。",
         "process_uploaded_files_button": "处理上传文件",
         "clear_knowledge_base_button": "清除知识库",
-        "clear_knowledge_base_success": "知识库已清空。",
+        "clear_knowledge_base_success": "知识库已清空！", # Updated message
         "clear_knowledge_base_failed": "清空知识库失败: {e}",
         "knowledge_base_empty_warning": "知识库未初始化或已为空。",
         "offline_app_info": "💡 这是一个完全离线的应用。所有数据处理都在您的本地设备上完成，不会上传到任何服务器。",
@@ -169,7 +171,8 @@ translations = {
         "language_switch_en": "English",
         "language_switch_zh": "中文",
         "select_assistant_mode": "Select Assistant Mode",
-        "select_language": "Select Language / 选择语言"
+        "select_language": "Select Language / 选择语言",
+        "restart_app_to_clear_message": "To fully clear the knowledge base files from disk, please restart the application."
     }
 }
 
@@ -282,7 +285,8 @@ if "vectorstore" not in st.session_state:
             )
             st.sidebar.success(get_text("knowledge_base_loaded_success"))
     except Exception as e:
-        st.sidebar.error(get_text("knowledge_base_init_failed").format(e=e))
+        st.sidebar.error(f"{get_text('knowledge_base_init_failed').format(e=e)}. "
+                         f"{get_text('restart_app_to_clear_message')}") # Add restart hint here too
         st.session_state.embeddings = None
         st.session_state.vectorstore = None
 
@@ -349,7 +353,7 @@ def process_documents(uploaded_files):
                 progress = (i + len(batch_splits)) / total_splits
                 embedding_progress_bar.progress(progress, text=get_text("processing_docs_progress") + f": {int(progress*100)}%")
             
-            st.session_state.vectorstore.persist() # Save changes to disk
+            # st.session_state.vectorstore.persist() # Save changes to disk # 移除此行
             embedding_progress_bar.empty() # Clear embedding progress bar
             st.success(get_text("docs_added_success").format(num_splits=len(splits)))
         else:
@@ -374,19 +378,28 @@ if st.sidebar.button(get_text("clear_knowledge_base_button"), key="clear_db_btn"
     if st.session_state.vectorstore:
         try:
             st.session_state.vectorstore.delete_collection() # Deletes all data in the collection
-            if os.path.exists(PERSIST_DIRECTORY):
-                shutil.rmtree(PERSIST_DIRECTORY) # Remove the directory itself
-                os.makedirs(PERSIST_DIRECTORY) # Recreate empty directory for future use
+            
+            # 关键修改：不再尝试显式删除目录，而是告知用户重启应用
+            # 确保对象引用被释放
+            st.session_state.vectorstore = None 
+            
+            st.success(get_text("clear_knowledge_base_success"))
+            st.warning(get_text("restart_app_to_clear_message")) # 新增提示
 
-            # Re-initialize the vectorstore
-            if st.session_state.embeddings: # Only if embeddings are available
+            # 重新初始化向量存储（仅当嵌入模型可用且目录存在时）
+            # 注意：此处不再检查目录是否被占用，因为物理删除不再是此逻辑的一部分。
+            if st.session_state.embeddings and os.path.exists(PERSIST_DIRECTORY):
                 st.session_state.vectorstore = Chroma(
                     embedding_function=st.session_state.embeddings,
                     persist_directory=st.session_state.chroma_db_dir
                 )
-            st.success(get_text("clear_knowledge_base_success"))
+            elif not os.path.exists(PERSIST_DIRECTORY): # 如果目录不存在，但成功清空了集合，则重新创建目录
+                 os.makedirs(PERSIST_DIRECTORY)
+
         except Exception as e:
-            st.error(get_text("clear_knowledge_base_failed").format(e=e))
+            st.error(f"{get_text('clear_knowledge_base_failed').format(e=e)}. "
+                     f"{get_text('restart_app_to_clear_message')}") # 使用新的消息键
+            st.session_state.vectorstore = None # 确保在任何错误时都将vectorstore设置为None
     else:
         st.warning(get_text("knowledge_base_empty_warning"))
 
@@ -471,7 +484,7 @@ if prompt := st.chat_input(get_text("chat_input_placeholder")):
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
-                st.error(get_text("model_interaction_error").format(e=e))
-                st.warning(get_text("ollama_service_check_warning"))
+                st.error(f"{get_text('model_interaction_error').format(e=e)}. "
+                         f"{get_text('ollama_service_check_warning')}") # This already has a suggestion.
 
 st.divider() # Another visual separator
