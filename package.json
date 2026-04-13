@@ -1,0 +1,19 @@
+{
+  "name": "carebridge-local",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Offline-first CareBridge Local monorepo for the Gemma 4 Good Hackathon.",
+  "workspaces": [
+    "apps/desktop",
+    "apps/web"
+  ],
+  "scripts": {
+    "desktop:dev": "npm --workspace @carebridge/desktop run dev",
+    "desktop:build": "npm --workspace @carebridge/desktop run build",
+    "desktop:tauri": "npm --workspace @carebridge/desktop run tauri:dev",
+    "web:dev": "npm --workspace @carebridge/web run dev",
+    "web:build": "npm --workspace @carebridge/web run build",
+    "core:dev": "python -m carebridge_local_core",
+    "check": "npm run web:build && npm run desktop:build"
+  }
+}

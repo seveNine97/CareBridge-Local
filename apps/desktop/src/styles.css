@@ -1,0 +1,163 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+:root {
+  --bg: #f5f7f0;
+  --card: #fcf8ee;
+  --ink: #1f2a27;
+  --muted: #59655f;
+  --accent: #00666f;
+  --danger: #9b2226;
+  --warning: #ca6702;
+  --safe: #2a9d8f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 15% 10%, #ffe8bf 0%, transparent 40%),
+    radial-gradient(circle at 85% 20%, #d7f2e7 0%, transparent 45%),
+    linear-gradient(160deg, #f3f4ef 0%, #e8f0f4 100%);
+  min-height: 100vh;
+}
+
+.layout {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.hero {
+  background: linear-gradient(120deg, #103638, #0a5d61);
+  color: #f6f8f7;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 40px rgba(16, 54, 56, 0.22);
+}
+
+h1,
+h2,
+h3 {
+  margin-top: 0;
+  font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+}
+
+.hero-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.grid {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid #d8ddd2;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+input,
+textarea {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #c2ccc1;
+  font: inherit;
+  background: #fffef9;
+}
+
+button {
+  margin-top: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+  background: var(--accent);
+  color: #f7ffff;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.92);
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.chip-neutral {
+  background: #dee6df;
+}
+
+.chip-danger {
+  background: #f8d7da;
+  color: var(--danger);
+}
+
+.chip-warning {
+  background: #ffe7c2;
+  color: var(--warning);
+}
+
+.chip-safe {
+  background: #d5f2ea;
+  color: #11695e;
+}
+
+.chat-box {
+  min-height: 140px;
+  white-space: pre-wrap;
+  background: #f3f6f2;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #d7e2d7;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.status {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #edf5f6;
+  color: #254244;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    padding: 14px;
+  }
+}

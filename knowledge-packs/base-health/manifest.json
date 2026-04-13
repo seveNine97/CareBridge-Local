@@ -1,0 +1,10 @@
+{
+  "id": "base-health",
+  "name": "Base Community Health Pack",
+  "version": "2026.04.10",
+  "language": "en",
+  "region": "global",
+  "license": "CC-BY-4.0",
+  "updated_at": "2026-04-10T00:00:00Z",
+  "description": "Starter guidance pack for community health workers covering pediatric fever, pregnancy danger signs, dehydration, respiratory illness, and medication safety."
+}
