@@ -1,19 +1,20 @@
 # CareBridge Local
 
-CareBridge Local is a Windows-first, offline community health worker copilot for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon). It is packaged as a real desktop application: reviewers and field users install it once, open the app, and complete model setup inside the interface. They do not need Python, Node.js, Rust, Ollama, or command-line dependency setup.
+CareBridge Local is a Windows-first, offline community health worker copilot for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon). It is packaged as a real desktop application: reviewers and field users install it once, open directly to an instant Q&A screen, and complete model setup inside the interface when needed. They do not need Python, Node.js, Rust, Ollama, or command-line dependency setup.
 
 ## For Reviewers
 
 1. Open the [GitHub repository](https://github.com/seveNine97/CareBridge-Local).
 2. Download the Windows installer from [`release/CareBridgeLocal-Setup-1.0.0.exe`](release/CareBridgeLocal-Setup-1.0.0.exe).
 3. Run `CareBridgeLocal-Setup-1.0.0.exe`.
-4. Open CareBridge Local and follow the in-app Runtime Setup Wizard.
-5. Try the three demo flows: pediatric fever, pregnancy danger signs, and medication-label uncertainty.
+4. Open CareBridge Local and ask a question on the first screen.
+5. Expand Runtime Setup or Clinical Case Tools only when needed.
 
 If you are reviewing from source instead of a release artifact, use `docs/REVIEWER_QUICKSTART.md`.
 
 ## What The App Does
 
+- Chat-first offline Q&A home screen for immediate use.
 - Guided intake for patient label, symptoms, risk factors, notes, and local attachments.
 - Rule-first triage that flags emergency referral cases before model generation.
 - Offline knowledge ingestion for `TXT`, `MD`, and `PDF` files.
@@ -34,7 +35,7 @@ submission        Kaggle-ready writeup, video script, judging map, release notes
 scripts           Build and reviewer-kit packaging scripts
 ```
 
-The desktop installer bundles the local FastAPI sidecar and seeded knowledge pack. Model weights are not committed to git because of size and licensing constraints; users can download/import them through the app.
+The desktop installer bundles the local FastAPI sidecar and seeded knowledge pack. The sidecar is built as a hidden no-console process, so normal users see only the CareBridge desktop app. Model weights are not committed to git because of size and licensing constraints; users can download/import them through the app.
 
 ## One-Command Release Build
 
@@ -98,6 +99,7 @@ Current expected result: backend tests pass, desktop production build passes, an
 - Demo script: `submission/video-script-final.md`
 - Judging map: `submission/judging-mapping-final.md`
 - Release notes: `submission/release-notes-v1.0.0.md`
+- Resume technical highlights: `docs/RESUME_HIGHLIGHTS.md`
 
 ## Safety Note
 

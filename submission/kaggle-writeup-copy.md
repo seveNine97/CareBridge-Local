@@ -1,8 +1,8 @@
 # CareBridge Local: Offline Gemma Copilot for Community Health Workers
 
-CareBridge Local is an offline-first Windows desktop application for community health workers who operate in low-connectivity clinics, outreach routes, and emergency referral settings. It helps a frontline worker collect patient context, identify red flags, ask safer follow-up questions, retrieve local medical guidance, chat with a local Gemma model, and export a referral handoff without sending sensitive patient data to the cloud.
+CareBridge Local is an offline-first Windows desktop application for community health workers who operate in low-connectivity clinics, outreach routes, and emergency referral settings. The latest version opens directly into a chat-first assistant, similar in spirit to a lightweight field-care version of an instant medical Q&A product: the user asks a question first, while case creation, triage, knowledge import, model setup, and referral export remain available as supporting tools.
 
-The main design decision was to ship this as a product, not a notebook or localhost demo. A reviewer can install the Windows app, open it, and use the in-app Runtime Setup Wizard. They do not need Python, Node.js, Rust, Docker, Ollama, or command-line dependency setup. The repository also includes a public Next.js story site, final submission assets, and scripts for building a reviewer kit.
+The main design decision was to ship this as a product, not a notebook or localhost demo. A reviewer can install the Windows app, open it, and ask a question immediately. They do not need Python, Node.js, Rust, Docker, Ollama, or command-line dependency setup. The local FastAPI sidecar is packaged as a hidden background process so normal users see the CareBridge application rather than backend terminals.
 
 ## Why This Matters
 
@@ -20,11 +20,9 @@ The app is designed so a field worker can download or import the model inside th
 ## Product Flow
 
 1. Install CareBridge Local from the Windows installer.
-2. Complete runtime/model setup in the app.
-3. Create a patient case with symptoms, risk factors, and notes.
-4. Run deterministic red-flag triage.
-5. Ask grounded follow-up questions with local citations.
-6. Export a referral packet for handoff.
+2. Open the app and ask a medical workflow question on the first screen.
+3. Optionally complete runtime/model setup in the app for local Gemma generation.
+4. Optionally save a case, run structured triage, import local guidance, and export a referral packet.
 
 Demo scenarios:
 
@@ -50,8 +48,10 @@ The model is used as a grounded communication and reasoning assistant, while det
 ## What Was Built
 
 - Full desktop app workflow: intake, triage, knowledge import, grounded chat, referral export.
+- Chat-first home screen so instant offline Q&A is the primary user path.
 - Local FastAPI core with SQLite, retrieval, model runtime manager, and export APIs.
 - In-app runtime setup wizard for `llama.cpp` and GGUF model import/download.
+- Hidden no-console local-core sidecar for normal installer use.
 - Public web story page for judging and reviewer onboarding.
 - Paste-ready submission materials, video script, judging map, and release notes.
 - Reviewer kit packaging script for non-technical installation.

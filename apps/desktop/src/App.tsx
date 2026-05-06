@@ -36,6 +36,12 @@ const initialPatient: PatientCaseCreate = {
   attachments: []
 };
 
+const sampleQuestions = [
+  "A child has fever, vomiting, and is very sleepy. What should I do next?",
+  "A 28-week pregnant patient reports bleeding and severe headache. How urgent is this?",
+  "The medicine label is unclear and the patient feels dizzy. What safe questions should I ask?"
+];
+
 function formatBytes(bytes?: number): string {
   if (!bytes || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -46,6 +52,19 @@ function formatBytes(bytes?: number): string {
     index += 1;
   }
   return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function quickPatient(question: string): PatientCaseCreate {
+  return {
+    ...initialPatient,
+    patient_label: "Quick chat",
+    symptoms: question
+      .split(/[,.!?;，。！？；]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 4),
+    notes: question
+  };
 }
 
 export default function App() {
@@ -59,7 +78,7 @@ export default function App() {
   const [triage, setTriage] = useState<TriageAssessment | null>(null);
   const [question, setQuestion] = useState("");
   const [chatText, setChatText] = useState("");
-  const [status, setStatus] = useState("Initializing...");
+  const [status, setStatus] = useState("Starting local service...");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [modelFile, setModelFile] = useState<File | null>(null);
   const [runtimeArchive, setRuntimeArchive] = useState<File | null>(null);
@@ -73,8 +92,8 @@ export default function App() {
 
   useEffect(() => {
     refreshSetupState()
-      .then(() => setStatus("Ready"))
-      .catch(() => setStatus("Cannot reach local-core API at 127.0.0.1:8011"));
+      .then(() => setStatus("Ready for offline questions"))
+      .catch(() => setStatus("Starting local-core. If this lasts more than a few seconds, reopen the app."));
   }, []);
 
   useEffect(() => {
@@ -101,9 +120,10 @@ export default function App() {
   const installedModels = (catalog?.models ?? []).filter((item) => item.installed);
   const balancedModel = (catalog?.models ?? []).find((item) => item.profile_name === "balanced");
   const setupReady = Boolean(catalog?.runtime_binary_present && installedModels.length > 0);
+  const runtimeReady = runtimeStatus?.status === "ready" || runtimeStatus?.status === "running";
 
   async function handleStartRuntime() {
-    setStatus("Starting runtime...");
+    setStatus("Starting local Gemma runtime...");
     try {
       const response = await startRuntime(modelProfile);
       setStatus(response.message ?? "Runtime started.");
@@ -163,7 +183,7 @@ export default function App() {
     try {
       const created = await createCase(patient);
       setCaseRecord(created);
-      setStatus(`Case created: ${created.case_id}`);
+      setStatus(`Case saved: ${created.case_id}`);
     } catch (error) {
       setStatus(`Create case failed: ${(error as Error).message}`);
     }
@@ -171,7 +191,7 @@ export default function App() {
 
   async function handleRunTriage() {
     if (!caseRecord) {
-      setStatus("Create a case first.");
+      setStatus("Save a case first.");
       return;
     }
     try {
@@ -198,28 +218,29 @@ export default function App() {
   }
 
   async function handleAsk() {
-    if (!caseRecord) {
-      setStatus("Create a case first.");
-      return;
-    }
     if (!question.trim()) {
-      setStatus("Enter a question.");
+      setStatus("Type a question first.");
       return;
     }
     setChatText("");
-    setStatus("Streaming response...");
-    await streamChat(
-      caseRecord.case_id,
-      question,
-      (chunk) => setChatText((prev) => prev + chunk),
-      ({ triage: streamTriage }) => setTriage(streamTriage)
-    );
-    setStatus("Response complete.");
+    setStatus(runtimeReady ? "Streaming local Gemma response..." : "Answering with local safety and retrieval fallback...");
+    try {
+      await streamChat(
+        caseRecord?.case_id ?? null,
+        question,
+        (chunk) => setChatText((prev) => prev + chunk),
+        ({ triage: streamTriage }) => setTriage(streamTriage),
+        caseRecord ? undefined : quickPatient(question)
+      );
+      setStatus("Response complete.");
+    } catch (error) {
+      setStatus(`Ask failed: ${(error as Error).message}`);
+    }
   }
 
   async function handleExport() {
     if (!caseRecord || !triage) {
-      setStatus("Run triage before exporting.");
+      setStatus("Save a case and run triage before exporting.");
       return;
     }
     try {
@@ -232,19 +253,59 @@ export default function App() {
 
   return (
     <main className="layout">
-      <section className="hero">
-        <h1>CareBridge Local</h1>
-        <p>Offline community health worker copilot with in-app runtime setup and local Gemma model management.</p>
+      <section className="ask-hero">
+        <div>
+          <p className="kicker">Offline Gemma care assistant</p>
+          <h1>Ask CareBridge</h1>
+          <p className="muted hero-copy">Start with a plain-language medical workflow question. Cases, triage, exports, and setup are available below when needed.</p>
+        </div>
+        <div className={runtimeReady ? "runtime-pill ready" : "runtime-pill"}>
+          {runtimeReady ? "Runtime ready" : setupReady ? "Runtime not started" : "Setup needed"}
+        </div>
       </section>
 
-      <section className="panel">
-        <h2>Runtime Setup Wizard</h2>
+      <section className="chat-surface">
+        <textarea
+          className="question-input"
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          rows={5}
+          placeholder="Ask a question, for example: A child has fever, vomiting, and is very sleepy. What should I do next?"
+        />
+        <div className="quick-row">
+          {sampleQuestions.map((sample) => (
+            <button className="sample-button" key={sample} onClick={() => setQuestion(sample)}>
+              {sample}
+            </button>
+          ))}
+        </div>
+        <button className="ask-button" onClick={handleAsk}>
+          Ask Offline Assistant
+        </button>
+        <pre className="answer-box">{chatText || "CareBridge answer will appear here, with safety triage metadata and citations when available."}</pre>
+      </section>
+
+      <section className="insight-strip">
+        <article>
+          <span className={urgencyClass}>{triage ? triage.urgency : "triage pending"}</span>
+          <p>{triage?.summary_for_patient ?? "Ask a question to generate triage-aware guidance."}</p>
+        </article>
+        <article>
+          <strong>Local data</strong>
+          <p>
+            Chunks: {health?.knowledge_chunk_count ?? 0} | Cases: {health?.case_count ?? 0}
+          </p>
+        </article>
+      </section>
+
+      <details className="panel" open={!setupReady}>
+        <summary>Runtime Setup</summary>
         <p className="muted">
           Runtime binary: {catalog?.runtime_binary_present ? "installed" : "missing"} | Models installed: {installedModels.length}
         </p>
         <div className="wizard-row">
           <label className="file-picker">
-            Install llama.cpp (zip)
+            Install llama.cpp zip
             <input type="file" accept=".zip" onChange={(event) => setRuntimeArchive(event.target.files?.[0] ?? null)} />
           </label>
           <button onClick={handleInstallRuntimeArchive}>Install Runtime</button>
@@ -290,11 +351,11 @@ export default function App() {
         <p className="muted">
           Runtime status: {runtimeStatus?.status ?? "unknown"} {runtimeStatus?.detail ? `| ${runtimeStatus.detail}` : ""}
         </p>
-      </section>
+      </details>
 
-      <section className="grid">
-        <article className="panel">
-          <h2>Intake Wizard</h2>
+      <section className="grid secondary-grid">
+        <details className="panel">
+          <summary>Clinical Case Tools</summary>
           <label>
             Patient label
             <input
@@ -304,7 +365,7 @@ export default function App() {
             />
           </label>
           <label>
-            Symptoms (comma separated)
+            Symptoms
             <input
               value={patient.symptoms.join(", ")}
               onChange={(event) =>
@@ -320,7 +381,7 @@ export default function App() {
             />
           </label>
           <label>
-            Risk factors (comma separated)
+            Risk factors
             <input
               value={patient.risk_factors.join(", ")}
               onChange={(event) =>
@@ -345,42 +406,15 @@ export default function App() {
             />
           </label>
           <div className="button-row">
-            <button onClick={handleCreateCase}>Create Case</button>
+            <button onClick={handleCreateCase}>Save Case</button>
             <button onClick={handleRunTriage}>Run Triage</button>
+            <button onClick={handleExport}>Export Referral</button>
           </div>
-          <p className="muted">{caseRecord ? `Case ID: ${caseRecord.case_id}` : "No case created yet."}</p>
-        </article>
+          <p className="muted">{caseRecord ? `Active case: ${caseRecord.case_id}` : "No saved case. Quick chat still works."}</p>
+        </details>
 
-        <article className="panel">
-          <h2>Triage Output</h2>
-          <p className={urgencyClass}>{triage ? triage.urgency : "pending"}</p>
-          <h3>Red Flags</h3>
-          <ul>
-            {(triage?.red_flags ?? ["No red flags yet"]).map((flag) => (
-              <li key={flag}>{flag}</li>
-            ))}
-          </ul>
-          <h3>Missing Information</h3>
-          <ul>
-            {(triage?.missing_information ?? ["No gaps flagged"]).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-          <h3>Citations</h3>
-          <ul>
-            {(triage?.citations ?? []).map((citation) => (
-              <li key={citation.citation_id}>
-                {citation.source_title} ({citation.score})
-              </li>
-            ))}
-          </ul>
-          <button onClick={handleExport}>Export Referral Pack</button>
-        </article>
-      </section>
-
-      <section className="grid">
-        <article className="panel">
-          <h2>Knowledge Import</h2>
+        <details className="panel">
+          <summary>Knowledge Import</summary>
           <input
             type="file"
             multiple
@@ -389,25 +423,18 @@ export default function App() {
           />
           <button onClick={handleImportKnowledge}>Import Files</button>
           <p className="muted">{selectedFiles.length ? `${selectedFiles.length} files selected` : "No files selected"}</p>
-        </article>
-
-        <article className="panel">
-          <h2>Grounded Chat</h2>
-          <textarea
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            rows={3}
-            placeholder="What should I do next for this patient?"
-          />
-          <button onClick={handleAsk}>Ask CareBridge</button>
-          <pre className="chat-box">{chatText || "Streamed answer appears here."}</pre>
-        </article>
+          <h3>Citations</h3>
+          <ul>
+            {(triage?.citations ?? []).map((citation) => (
+              <li key={citation.citation_id}>
+                {citation.source_title} ({citation.score})
+              </li>
+            ))}
+          </ul>
+        </details>
       </section>
 
-      <footer className="status">
-        {status}
-        {health ? ` | Chunks: ${health.knowledge_chunk_count} | Cases: ${health.case_count}` : ""}
-      </footer>
+      <footer className="status">{status}</footer>
     </main>
   );
 }

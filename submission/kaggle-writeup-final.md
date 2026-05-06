@@ -5,10 +5,10 @@ Community health workers in weak-connectivity settings often work without stable
 
 ## 2. Solution summary
 CareBridge Local is a Windows-first offline product with two deliverables:
-- Desktop app (Tauri + local FastAPI sidecar): intake, triage, grounded chat, referral export.
+- Desktop app (Tauri + hidden local FastAPI sidecar): chat-first Q&A, intake, triage, grounded chat, referral export.
 - Public demo site (Next.js): story, architecture, download, and judging walkthrough.
 
-The key submission upgrade is deployability. Reviewers and field users install a Windows app and complete setup in the interface. They do not need Python, Node.js, Rust, Docker, Ollama, or manual dependency installation.
+The key submission upgrade is deployability and usability. Reviewers and field users install a Windows app, open directly to an instant Q&A surface, and can complete model setup in the interface. They do not need Python, Node.js, Rust, Docker, Ollama, or manual dependency installation.
 
 ## 3. Why Gemma 4
 Gemma 4 provides strong multilingual reasoning while remaining practical for edge deployment through GGUF quantization. We use:
@@ -18,10 +18,11 @@ Gemma 4 provides strong multilingual reasoning while remaining practical for edg
 This profile strategy enables a single product UX across mixed field hardware.
 
 ## 4. Technical architecture
-- Desktop layer: Tauri 2 + React runtime setup wizard + intake/triage/chat/export workflow.
+- Desktop layer: Tauri 2 + React chat-first home screen + runtime setup wizard + intake/triage/export workflow.
 - Local-core layer: FastAPI + SQLite + safety rule engine + hybrid retrieval + model manager.
 - Runtime layer: `llama.cpp` (`llama-server`) as production runtime with tunable launch parameters.
 - Packaging: desktop installer bundles local-core sidecar and llama.cpp runtime binaries; model is downloaded/imported in app.
+- The sidecar is packaged without a visible console so users interact only with the CareBridge desktop app.
 
 ## 5. Safety and trust
 - Rule-first emergency guardrails are executed before model output.

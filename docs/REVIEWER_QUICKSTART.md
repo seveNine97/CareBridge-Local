@@ -6,8 +6,8 @@ Use the installer in the repository `release/` folder. This is the intended expe
 
 1. Download `CareBridgeLocal-Setup-1.0.0.exe`.
 2. Install and open CareBridge Local.
-3. Use the in-app Runtime Setup Wizard.
-4. Run one demo case from `docs/USER_GUIDE.md`.
+3. Ask a question immediately on the first screen.
+4. Expand Runtime Setup or Clinical Case Tools only if you want to test model setup, case saving, triage, or referral export.
 
 ## Source Verification Path
 

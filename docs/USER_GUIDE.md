@@ -12,11 +12,13 @@ You do not need to install Python, Node.js, Rust, Docker, Ollama, or any develop
 
 ## First Launch
 
-1. Open the **Runtime Setup Wizard** at the top of the app.
-2. If the reviewer kit includes a `llama.cpp` runtime bundle, import it with **Install Runtime**.
-3. Use **Download E4B** for the recommended Gemma profile, or **Download E2B** on lower-memory machines.
-4. If you already have a GGUF model file, use **Import local GGUF** instead.
-5. Choose **Auto** or **Balanced (E4B)**, then click **Start Runtime**.
+1. Type a question in **Ask CareBridge** on the first screen.
+2. Use the sample questions if you want a quick demo.
+3. Expand **Runtime Setup** only when you need to install/import the local Gemma runtime.
+4. If the reviewer kit includes a `llama.cpp` runtime bundle, import it with **Install Runtime**.
+5. Use **Download E4B** for the recommended Gemma profile, or **Download E2B** on lower-memory machines.
+6. If you already have a GGUF model file, use **Import local GGUF** instead.
+7. Choose **Auto** or **Balanced (E4B)**, then click **Start Runtime**.
 
 The app stores all local data under the user profile, not in a cloud account.
 
@@ -30,11 +32,11 @@ Use one of these scenarios:
 
 Workflow:
 
-1. Fill in **Patient label**, **Symptoms**, **Risk factors**, and **Notes**.
-2. Click **Create Case**.
-3. Click **Run Triage** and review urgency, red flags, missing information, and citations.
-4. Ask a follow-up question in **Grounded Chat**.
-5. Click **Export Referral Pack** when a handoff is needed.
+1. Ask the question directly on the home screen.
+2. Expand **Clinical Case Tools** if you want to save a formal case.
+3. Fill in **Patient label**, **Symptoms**, **Risk factors**, and **Notes**.
+4. Click **Save Case**, then **Run Triage**.
+5. Click **Export Referral** when a handoff is needed.
 
 ## Offline Use
 

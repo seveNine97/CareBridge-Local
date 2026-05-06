@@ -24,6 +24,7 @@ try {
   python -m PyInstaller --noconfirm --clean `
     --name carebridge-local-core `
     --onefile `
+    --noconsole `
     --collect-all uvicorn `
     --collect-all fastapi `
     --collect-all pydantic `
@@ -45,6 +46,6 @@ Copy-Item -LiteralPath $builtExe -Destination (Join-Path $resourceLocalCore "car
 if (Test-Path $resourceKnowledge) {
   Get-ChildItem -LiteralPath $resourceKnowledge -Force | Remove-Item -Recurse -Force
 }
-Copy-Item -LiteralPath (Join-Path $RepoRoot "knowledge-packs\*") -Destination $resourceKnowledge -Recurse -Force
+Copy-Item -Path (Join-Path $RepoRoot "knowledge-packs\*") -Destination $resourceKnowledge -Recurse -Force
 
 Write-Host "Backend sidecar built and staged."

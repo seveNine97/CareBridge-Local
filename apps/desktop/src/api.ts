@@ -117,15 +117,17 @@ export async function installLlamaRuntime(archive: File) {
 }
 
 export async function streamChat(
-  caseId: string,
+  caseId: string | null,
   question: string,
   onChunk: (text: string) => void,
-  onMeta: (payload: { triage: TriageAssessment; citations: unknown[] }) => void
+  onMeta: (payload: { triage: TriageAssessment; citations: unknown[] }) => void,
+  patient?: PatientCaseCreate
 ) {
+  const body = caseId ? { case_id: caseId, question } : { patient, question };
   const response = await fetch(`${API_BASE}/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ case_id: caseId, question })
+    body: JSON.stringify(body)
   });
   if (!response.ok || !response.body) throw new Error("Failed to stream chat");
 
