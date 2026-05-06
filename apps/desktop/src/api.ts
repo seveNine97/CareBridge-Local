@@ -1,59 +1,119 @@
 import type {
   HealthResponse,
+  ModelCatalogResponse,
+  ModelDownloadStatus,
   PatientCase,
   PatientCaseCreate,
   ReferralExportResponse,
+  RuntimeStatusResponse,
   TriageAssessment
 } from "./types";
 
 const API_BASE = "http://127.0.0.1:8011";
 
-export async function fetchHealth(): Promise<HealthResponse> {
-  const response = await fetch(`${API_BASE}/health`);
-  if (!response.ok) throw new Error("Failed to fetch health");
-  return response.json();
+type RuntimeStartResponse = {
+  message: string;
+};
+
+type KnowledgeImportResult = {
+  imported_documents: number;
+  imported_chunks: number;
+};
+
+async function ensureOk<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+  return response.json() as Promise<T>;
 }
 
-export async function startRuntime() {
-  const response = await fetch(`${API_BASE}/runtime/start`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      runtime: "llama_cpp",
-      preferred_profile: "balanced"
+export async function fetchHealth(): Promise<HealthResponse> {
+  return ensureOk(await fetch(`${API_BASE}/health`));
+}
+
+export async function fetchRuntimeStatus(): Promise<RuntimeStatusResponse> {
+  return ensureOk(await fetch(`${API_BASE}/runtime/status`));
+}
+
+export async function fetchModelCatalog(): Promise<ModelCatalogResponse> {
+  return ensureOk(await fetch(`${API_BASE}/models/catalog`));
+}
+
+export async function startRuntime(preferredProfile = "auto"): Promise<RuntimeStartResponse> {
+  return ensureOk<RuntimeStartResponse>(
+    await fetch(`${API_BASE}/runtime/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        runtime: "llama_cpp",
+        preferred_profile: preferredProfile
+      })
     })
-  });
-  if (!response.ok) throw new Error("Failed to start runtime");
-  return response.json();
+  );
 }
 
 export async function createCase(payload: PatientCaseCreate): Promise<PatientCase> {
-  const response = await fetch(`${API_BASE}/cases`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  if (!response.ok) throw new Error("Failed to create case");
-  return response.json();
+  return ensureOk(
+    await fetch(`${API_BASE}/cases`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+  );
 }
 
 export async function runTriage(caseId: string, patient: PatientCaseCreate): Promise<TriageAssessment> {
-  const response = await fetch(`${API_BASE}/triage/run`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ case_id: caseId, patient })
-  });
-  if (!response.ok) throw new Error("Failed to run triage");
-  return response.json();
+  return ensureOk(
+    await fetch(`${API_BASE}/triage/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ case_id: caseId, patient })
+    })
+  );
 }
 
 export async function importKnowledge(files: File[], packId = "user-upload") {
   const formData = new FormData();
   formData.append("pack_id", packId);
   files.forEach((file) => formData.append("files", file));
-  const response = await fetch(`${API_BASE}/knowledge/import`, { method: "POST", body: formData });
-  if (!response.ok) throw new Error("Failed to import knowledge");
-  return response.json();
+  return ensureOk<KnowledgeImportResult>(await fetch(`${API_BASE}/knowledge/import`, { method: "POST", body: formData }));
+}
+
+export async function downloadModel(modelId: string) {
+  return ensureOk<{ task_id: string; status: string; message: string }>(
+    await fetch(`${API_BASE}/models/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId, force_redownload: false })
+    })
+  );
+}
+
+export async function getModelDownloadStatus(taskId: string): Promise<ModelDownloadStatus> {
+  return ensureOk(await fetch(`${API_BASE}/models/download/${taskId}`));
+}
+
+export async function importModelFile(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return ensureOk(
+    await fetch(`${API_BASE}/models/import`, {
+      method: "POST",
+      body: formData
+    })
+  );
+}
+
+export async function installLlamaRuntime(archive: File) {
+  const formData = new FormData();
+  formData.append("file", archive);
+  return ensureOk(
+    await fetch(`${API_BASE}/runtime/install-llama`, {
+      method: "POST",
+      body: formData
+    })
+  );
 }
 
 export async function streamChat(
@@ -94,11 +154,11 @@ export async function streamChat(
 }
 
 export async function exportReferral(caseId: string, triage: TriageAssessment): Promise<ReferralExportResponse> {
-  const response = await fetch(`${API_BASE}/export/referral`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ case_id: caseId, triage, extra_notes: "" })
-  });
-  if (!response.ok) throw new Error("Failed to export referral");
-  return response.json();
+  return ensureOk(
+    await fetch(`${API_BASE}/export/referral`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ case_id: caseId, triage, extra_notes: "" })
+    })
+  );
 }

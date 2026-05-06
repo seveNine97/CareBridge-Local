@@ -1,14 +1,9 @@
-from pathlib import Path
-import uuid
-
 from carebridge_local_core.retrieval import HybridRetriever
 from carebridge_local_core.storage import Storage
 
 
-def test_hybrid_retrieval_returns_relevant_hit() -> None:
-    local_tmp = Path(".tmp_testdata")
-    local_tmp.mkdir(exist_ok=True)
-    db_path = local_tmp / f"retrieval-{uuid.uuid4().hex}.db"
+def test_hybrid_retrieval_returns_relevant_hit(tmp_path) -> None:
+    db_path = tmp_path / "retrieval.db"
     storage = Storage(db_path)
     storage.insert_chunk(
         pack_id="base-health",

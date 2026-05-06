@@ -13,13 +13,43 @@ Request:
 ```json
 {
   "runtime": "llama_cpp",
-  "preferred_profile": "balanced",
+  "preferred_profile": "auto",
   "model_path": null,
-  "endpoint_override": null
+  "endpoint_override": null,
+  "runtime_params": {}
 }
 ```
 
 Starts local runtime selection and returns the active model profile.
+
+## `GET /runtime/status`
+
+Returns runtime process health, endpoint, selected profile metadata, and launch diagnostics.
+
+## `GET /models/catalog`
+
+Returns:
+- runtime binary presence/path
+- available model catalog (`E4B` / `E2B`)
+- installed model flags and local paths
+
+## `POST /models/download`
+
+Starts an in-app background model download task.
+
+## `GET /models/download/{task_id}`
+
+Returns task progress (bytes, speed, eta, status, errors).
+
+## `POST /models/import`
+
+Multipart upload for local GGUF import:
+- `file` field with `.gguf`
+
+## `POST /runtime/install-llama`
+
+Multipart upload for llama.cpp runtime archive:
+- `file` field with `.zip`
 
 ## `POST /cases`
 

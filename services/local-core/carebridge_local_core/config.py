@@ -6,7 +6,18 @@ from pathlib import Path
 
 
 def _default_home() -> Path:
-    return Path(os.getenv("CAREBRIDGE_HOME", Path.cwd() / ".carebridge")).resolve()
+    configured = os.getenv("CAREBRIDGE_HOME")
+    if configured:
+        return Path(configured).resolve()
+    local_app_data = os.getenv("LOCALAPPDATA")
+    if local_app_data:
+        candidate = (Path(local_app_data) / "CareBridgeLocal").resolve()
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            return candidate
+        except OSError:
+            pass
+    return (Path.cwd() / ".carebridge").resolve()
 
 
 @dataclass(frozen=True)
@@ -41,9 +52,14 @@ class Settings:
 
     @property
     def knowledge_root(self) -> Path:
+        configured = os.getenv("CAREBRIDGE_KNOWLEDGE_ROOT")
+        if configured:
+            return Path(configured).resolve()
         repo_root = Path(__file__).resolve().parents[3]
-        return repo_root / "knowledge-packs"
+        candidate = repo_root / "knowledge-packs"
+        if candidate.exists():
+            return candidate
+        return self.home_dir / "knowledge-packs"
 
 
 settings = Settings()
-

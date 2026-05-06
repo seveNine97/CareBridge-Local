@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncGenerator
 from uuid import uuid4
 
@@ -14,10 +17,16 @@ from fastapi.responses import StreamingResponse
 from carebridge_local_core.config import settings
 from carebridge_local_core.exporter import ReferralExporter
 from carebridge_local_core.knowledge import KnowledgeService
+from carebridge_local_core.model_manager import ModelManager
 from carebridge_local_core.models import (
     ChatRequest,
     HealthResponse,
     KnowledgeImportResponse,
+    ModelCatalogResponse,
+    ModelDownloadRequest,
+    ModelDownloadResponse,
+    ModelDownloadStatus,
+    ModelImportResponse,
     PatientCase,
     PatientCaseCreate,
     ReferralExportRequest,
@@ -35,7 +44,8 @@ from carebridge_local_core.triage import evaluate_triage
 storage = Storage(settings.db_path)
 retriever = HybridRetriever(storage)
 knowledge = KnowledgeService(storage)
-runtime_manager = RuntimeManager()
+model_manager = ModelManager()
+runtime_manager = RuntimeManager(model_manager=model_manager)
 exporter = ReferralExporter(storage)
 
 
@@ -74,6 +84,15 @@ async def startup_event() -> None:
     settings.exports_dir.mkdir(parents=True, exist_ok=True)
     settings.models_dir.mkdir(parents=True, exist_ok=True)
     settings.runtime_dir.mkdir(parents=True, exist_ok=True)
+    settings.llama_dir.mkdir(parents=True, exist_ok=True)
+    runtime_bundle = os.getenv("CAREBRIDGE_RUNTIME_BUNDLE")
+    if runtime_bundle:
+        bundle_dir = Path(runtime_bundle)
+        target_binary = settings.llama_dir / "llama-server.exe"
+        if bundle_dir.exists() and not target_binary.exists():
+            for item in bundle_dir.glob("*"):
+                if item.is_file():
+                    shutil.copy2(item, settings.llama_dir / item.name)
     knowledge.bootstrap_seed_pack()
 
 
@@ -98,6 +117,7 @@ async def runtime_start(request: RuntimeStartRequest) -> RuntimeStartResponse:
         preferred_profile=request.preferred_profile,
         model_path=request.model_path,
         endpoint_override=request.endpoint_override,
+        runtime_params=request.runtime_params,
     )
     if state.active_profile is None:
         raise HTTPException(status_code=500, detail="No active profile after runtime start.")
@@ -106,6 +126,91 @@ async def runtime_start(request: RuntimeStartRequest) -> RuntimeStartResponse:
         available_profiles=runtime_manager.profiles,
         message=state.detail or "Runtime started.",
     )
+
+
+@app.get("/runtime/status")
+async def runtime_status() -> dict:
+    return runtime_manager.status_payload()
+
+
+@app.get("/models/catalog", response_model=ModelCatalogResponse)
+async def models_catalog() -> ModelCatalogResponse:
+    runtime_binary = model_manager.runtime_binary_path()
+    return ModelCatalogResponse(
+        runtime_binary_present=runtime_binary.exists(),
+        runtime_binary_path=str(runtime_binary),
+        models=model_manager.catalog(),
+    )
+
+
+@app.post("/models/download", response_model=ModelDownloadResponse)
+async def models_download(request: ModelDownloadRequest) -> ModelDownloadResponse:
+    try:
+        task = model_manager.start_download(model_id=request.model_id, force_redownload=request.force_redownload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ModelDownloadResponse(
+        task_id=task.task_id,
+        status=task.status,
+        message="Download task started." if task.status != "completed" else "Model already available.",
+    )
+
+
+@app.get("/models/download/{task_id}", response_model=ModelDownloadStatus)
+async def models_download_status(task_id: str) -> ModelDownloadStatus:
+    task = model_manager.status(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Download task not found: {task_id}")
+    return task
+
+
+@app.post("/models/import", response_model=ModelImportResponse)
+async def models_import(file: UploadFile = File(...)) -> ModelImportResponse:
+    destination = settings.models_dir / file.filename
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("wb") as handle:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            handle.write(chunk)
+    model_id = next((item.model_id for item in model_manager.catalog() if item.filename == file.filename), None)
+    return ModelImportResponse(
+        model_id=model_id,
+        filename=file.filename,
+        destination_path=str(destination),
+        bytes_written=destination.stat().st_size,
+        message="Model imported successfully.",
+    )
+
+
+@app.post("/runtime/install-llama")
+async def runtime_install_llama(file: UploadFile = File(...)) -> dict:
+    runtime_zip = settings.llama_dir / file.filename
+    with runtime_zip.open("wb") as handle:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            handle.write(chunk)
+
+    extract_root = settings.llama_dir / "bundle"
+    if extract_root.exists():
+        shutil.rmtree(extract_root)
+    extract_root.mkdir(parents=True, exist_ok=True)
+    shutil.unpack_archive(str(runtime_zip), str(extract_root))
+    runtime_zip.unlink(missing_ok=True)
+
+    binary = next((path for path in extract_root.rglob("llama-server.exe")), None)
+    if binary is None:
+        raise HTTPException(status_code=400, detail="llama-server.exe not found in uploaded archive.")
+
+    target_binary = settings.llama_dir / "llama-server.exe"
+    shutil.copy2(binary, target_binary)
+    for dll in binary.parent.glob("*.dll"):
+        shutil.copy2(dll, settings.llama_dir / dll.name)
+
+    return {"status": "ready", "binary_path": str(target_binary)}
 
 
 @app.post("/cases", response_model=PatientCase)

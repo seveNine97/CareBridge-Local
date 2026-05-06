@@ -80,9 +80,10 @@ class TriageAssessment(BaseModel):
 
 class RuntimeStartRequest(BaseModel):
     runtime: RuntimeKind = RuntimeKind.llama_cpp
-    preferred_profile: str = "balanced"
+    preferred_profile: str = "auto"
     model_path: str | None = None
     endpoint_override: str | None = None
+    runtime_params: dict[str, int | float | str] = Field(default_factory=dict)
 
 
 class RuntimeStartResponse(BaseModel):
@@ -148,3 +149,55 @@ class RuntimeState(BaseModel):
     endpoint: str | None = None
     process_id: int | None = None
     meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class ModelCatalogItem(BaseModel):
+    model_id: str
+    profile_name: str
+    model_name: str
+    filename: str
+    file_size_bytes: int
+    sha256: str | None = None
+    recommended_memory_gb: float
+    download_url: str
+    installed: bool = False
+    installed_path: str | None = None
+
+
+class ModelCatalogResponse(BaseModel):
+    runtime_binary_present: bool
+    runtime_binary_path: str
+    models: list[ModelCatalogItem]
+
+
+class ModelDownloadRequest(BaseModel):
+    model_id: str
+    force_redownload: bool = False
+
+
+class ModelDownloadResponse(BaseModel):
+    task_id: str
+    status: str
+    message: str
+
+
+class ModelDownloadStatus(BaseModel):
+    task_id: str
+    model_id: str
+    status: str
+    progress: float = 0.0
+    downloaded_bytes: int = 0
+    total_bytes: int | None = None
+    speed_bps: float | None = None
+    eta_seconds: float | None = None
+    file_path: str | None = None
+    error: str | None = None
+    sha256_verified: bool | None = None
+
+
+class ModelImportResponse(BaseModel):
+    model_id: str | None = None
+    filename: str
+    destination_path: str
+    bytes_written: int
+    message: str

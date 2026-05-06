@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import os
 import platform
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -8,6 +9,7 @@ from uuid import uuid4
 from carebridge_local_core.inference.base import GenerationRequest
 from carebridge_local_core.inference.llamacpp import LlamaCppProvider
 from carebridge_local_core.inference.ollama import OllamaProvider
+from carebridge_local_core.model_manager import ModelManager
 from carebridge_local_core.models import ModelProfile, RuntimeKind, RuntimeState
 
 
@@ -33,8 +35,14 @@ def _estimate_memory_gb() -> float:
     return 8.0
 
 
+def _estimate_physical_cores() -> int:
+    cpu_count = os.cpu_count() or 4
+    return max(cpu_count // 2, 2)
+
+
 class RuntimeManager:
-    def __init__(self) -> None:
+    def __init__(self, model_manager: ModelManager) -> None:
+        self.model_manager = model_manager
         self.llama_provider = LlamaCppProvider()
         self.ollama_provider = OllamaProvider()
         self.state = RuntimeState(status="not_started", detail="Runtime not initialized.")
@@ -68,28 +76,54 @@ class RuntimeManager:
             ),
         ]
 
-    def choose_profile(self, preferred: str, runtime: RuntimeKind) -> ModelProfile:
+    def choose_profile(self, preferred: str, runtime: RuntimeKind) -> tuple[ModelProfile, str | None]:
         memory_gb = _estimate_memory_gb()
+        cores = _estimate_physical_cores()
         candidates = [profile for profile in self.profiles if profile.runtime == runtime]
         if not candidates:
             raise ValueError(f"No profiles available for runtime={runtime}")
 
-        preferred_match = next((profile for profile in candidates if profile.profile_name == preferred), None)
-        if preferred_match:
-            return preferred_match
+        if preferred != "auto":
+            preferred_match = next((profile for profile in candidates if profile.profile_name == preferred), None)
+            if preferred_match:
+                return preferred_match, None
 
         if runtime == RuntimeKind.llama_cpp:
-            if memory_gb >= 12:
-                return next(profile for profile in candidates if profile.profile_name == "balanced")
-            return next(profile for profile in candidates if profile.profile_name == "compatibility")
-        return candidates[0]
+            balanced = next(profile for profile in candidates if profile.profile_name == "balanced")
+            compatibility = next(profile for profile in candidates if profile.profile_name == "compatibility")
+            if memory_gb >= 12 and cores >= 4:
+                return balanced, None
+            reason = f"auto fallback to compatibility profile (memory={memory_gb}GB, physical_cores={cores})."
+            return compatibility, reason
+        return candidates[0], None
 
-    def start(self, runtime: RuntimeKind, preferred_profile: str, model_path: str | None, endpoint_override: str | None) -> RuntimeState:
-        profile = self.choose_profile(preferred_profile, runtime)
+    def start(
+        self,
+        runtime: RuntimeKind,
+        preferred_profile: str,
+        model_path: str | None,
+        endpoint_override: str | None,
+        runtime_params: dict[str, int | float | str] | None = None,
+    ) -> RuntimeState:
+        profile, fallback_reason = self.choose_profile(preferred_profile, runtime)
+        resolved_model_path = model_path
+        if runtime == RuntimeKind.llama_cpp and not resolved_model_path:
+            local_model = self.model_manager.resolve_model_path(profile.profile_name)
+            resolved_model_path = str(local_model) if local_model else None
         if runtime == RuntimeKind.llama_cpp:
-            self.state = self.llama_provider.start(profile, model_path=model_path, endpoint_override=endpoint_override)
+            self.state = self.llama_provider.start(
+                profile,
+                model_path=resolved_model_path,
+                endpoint_override=endpoint_override,
+                runtime_params=runtime_params,
+            )
         elif runtime == RuntimeKind.ollama:
-            self.state = self.ollama_provider.start(profile, model_path=model_path, endpoint_override=endpoint_override)
+            self.state = self.ollama_provider.start(
+                profile,
+                model_path=resolved_model_path,
+                endpoint_override=endpoint_override,
+                runtime_params=runtime_params,
+            )
         else:
             self.state = RuntimeState(
                 active_profile=profile,
@@ -97,6 +131,10 @@ class RuntimeManager:
                 detail="Mock runtime selected for offline fallback.",
                 endpoint=None,
             )
+        if fallback_reason:
+            self.state.meta["profile_fallback_reason"] = fallback_reason
+        self.state.meta["detected_memory_gb"] = _estimate_memory_gb()
+        self.state.meta["detected_physical_cores"] = _estimate_physical_cores()
         return self.state
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
@@ -116,11 +154,17 @@ class RuntimeManager:
         )
 
     def status_payload(self) -> dict:
-        return {
+        status = {
             "status": self.state.status,
             "detail": self.state.detail,
             "endpoint": self.state.endpoint,
             "active_profile": self.state.active_profile.model_dump() if self.state.active_profile else None,
             "heartbeat": datetime.now(timezone.utc).isoformat(),
             "session_id": str(uuid4()),
+            "runtime_binary_path": str(self.model_manager.runtime_binary_path()),
+            "runtime_binary_present": self.model_manager.runtime_binary_path().exists(),
         }
+        if self.state.active_profile and self.state.active_profile.runtime == RuntimeKind.llama_cpp:
+            status["llama_process"] = self.llama_provider.status_meta()
+        status["meta"] = self.state.meta
+        return status

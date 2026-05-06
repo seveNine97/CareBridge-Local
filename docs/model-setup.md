@@ -1,6 +1,7 @@
 # Model and Runtime Setup
 
 This project runs with `llama.cpp` by default and keeps Ollama as an optional development fallback.
+End-user path is now desktop app first: runtime and model can be installed directly inside the app.
 
 ## Required artifacts
 
@@ -22,6 +23,13 @@ If your network is unstable, open the direct links in a browser/download manager
 
 - Model path: `.carebridge/models/`
 - Runtime path: `.carebridge/runtime/llama.cpp/llama-server.exe`
+
+## In-app setup (recommended)
+
+1. Launch desktop app and open `Runtime Setup Wizard`.
+2. Install llama.cpp runtime from zip (or use bundled runtime from installer).
+3. Download model in-app (`E4B`/`E2B`) or import local `.gguf`.
+4. Click `Start Runtime`.
 
 ## Runtime start
 

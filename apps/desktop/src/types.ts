@@ -49,6 +49,14 @@ export interface HealthResponse {
   service: string;
   timestamp: string;
   runtime_status: string;
+  active_profile?: {
+    runtime: string;
+    profile_name: string;
+    model_name: string;
+    quantization: string;
+    estimated_memory_gb: number;
+    status: string;
+  };
   case_count: number;
   knowledge_chunk_count: number;
   installed_packs: string[];
@@ -61,4 +69,51 @@ export interface ReferralExportResponse {
   html_path: string;
   json_path: string;
   created_at: string;
+}
+
+export interface ModelCatalogItem {
+  model_id: string;
+  profile_name: string;
+  model_name: string;
+  filename: string;
+  file_size_bytes: number;
+  sha256?: string;
+  recommended_memory_gb: number;
+  download_url: string;
+  installed: boolean;
+  installed_path?: string;
+}
+
+export interface ModelCatalogResponse {
+  runtime_binary_present: boolean;
+  runtime_binary_path: string;
+  models: ModelCatalogItem[];
+}
+
+export interface RuntimeStatusResponse {
+  status: string;
+  detail: string;
+  endpoint?: string;
+  runtime_binary_present: boolean;
+  runtime_binary_path: string;
+  meta?: Record<string, unknown>;
+  llama_process?: {
+    process_alive: boolean;
+    process_id?: number;
+    launch_command?: string[];
+  };
+}
+
+export interface ModelDownloadStatus {
+  task_id: string;
+  model_id: string;
+  status: "queued" | "downloading" | "completed" | "failed";
+  progress: number;
+  downloaded_bytes: number;
+  total_bytes?: number;
+  speed_bps?: number;
+  eta_seconds?: number;
+  file_path?: string;
+  error?: string;
+  sha256_verified?: boolean;
 }

@@ -14,7 +14,13 @@ class GenerationRequest:
 class InferenceProvider:
     runtime_name: str = "mock"
 
-    def start(self, profile: ModelProfile, model_path: str | None = None, endpoint_override: str | None = None) -> RuntimeState:
+    def start(
+        self,
+        profile: ModelProfile,
+        model_path: str | None = None,
+        endpoint_override: str | None = None,
+        runtime_params: dict[str, int | float | str] | None = None,
+    ) -> RuntimeState:
         return RuntimeState(status="not_started", detail="Provider start not implemented")
 
     def generate(self, request: GenerationRequest, state: RuntimeState) -> str:

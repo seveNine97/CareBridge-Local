@@ -9,7 +9,13 @@ from carebridge_local_core.models import ModelProfile, RuntimeState
 class OllamaProvider(InferenceProvider):
     runtime_name = "ollama"
 
-    def start(self, profile: ModelProfile, model_path: str | None = None, endpoint_override: str | None = None) -> RuntimeState:
+    def start(
+        self,
+        profile: ModelProfile,
+        model_path: str | None = None,
+        endpoint_override: str | None = None,
+        runtime_params: dict[str, int | float | str] | None = None,
+    ) -> RuntimeState:
         endpoint = endpoint_override or "http://127.0.0.1:11434"
         return RuntimeState(
             active_profile=profile,

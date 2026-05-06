@@ -19,6 +19,7 @@ CareBridge Local is an offline-first community health worker copilot built for t
 - Streaming chat endpoint that returns answer chunks, safety alerts, and citations.
 - Referral export endpoint that writes a printable HTML handout and JSON packet to local storage.
 - Runtime abstraction for `llama.cpp` and `Ollama`, with `llama.cpp` as the production-first provider.
+- In-app runtime setup wizard for downloading/importing models and starting local inference.
 
 ## Repository Layout
 
@@ -88,6 +89,27 @@ cd scripts
 
 Manual links and fallback flow are documented in `docs/model-setup.md`.
 
+Desktop users can also complete runtime setup directly inside the app (`Runtime Setup Wizard`).
+
+### 6. Build Windows installer
+
+```powershell
+cd scripts
+.\build-desktop.ps1 -LlamaZipPath "C:\Users\seveNine\Downloads\llama-b8814-bin-win-cpu-x64.zip"
+```
+
+The build script stages:
+- local-core sidecar executable
+- bundled `llama.cpp` runtime binaries
+- seeded knowledge packs
+- Tauri installer targets: NSIS (`.exe`) + MSI (`.msi`)
+
+If your network requires proxy for GitHub downloads (NSIS/WiX), use:
+
+```powershell
+.\build-desktop.ps1 -LlamaZipPath "C:\Users\seveNine\Downloads\llama-b8814-bin-win-cpu-x64.zip" -UseLocalProxy -ProxyUrl "http://127.0.0.1:7890"
+```
+
 ## Data and Runtime Notes
 
 - Runtime data is stored under `.carebridge/`.
@@ -98,9 +120,8 @@ Manual links and fallback flow are documented in `docs/model-setup.md`.
 
 ## Known Constraints In This Workspace
 
-- Rust is not installed in the current environment, so the Tauri shell cannot be built here yet.
-- Python service dependencies such as `fastapi` are not installed in the current environment.
-- The runtime providers are implemented, but no Gemma model weights or `llama.cpp` binaries are bundled in this repository.
+- Gemma model weights are intentionally not bundled into installers due to size; users download/import in app.
+- Tauri build requires a local Rust toolchain and WebView2-ready Windows build environment.
 
 ## Legacy Prototype
 

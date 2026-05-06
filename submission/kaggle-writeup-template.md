@@ -1,7 +1,7 @@
 # CareBridge Local: Offline Clinical Copilot for Community Health Workers
 
 ## 1. Problem and motivation
-TODO: Describe target users (rural clinics, NGO outreach, low-connectivity health workers) and current pain points.
+Community health workers in low-connectivity environments need offline triage and evidence support without relying on cloud infrastructure.
 
 ## 2. Solution summary
 - Offline-first desktop app for intake, triage, grounded chat, and referral export.
@@ -9,11 +9,10 @@ TODO: Describe target users (rural clinics, NGO outreach, low-connectivity healt
 - Public website for storytelling, onboarding, and download.
 
 ## 3. Why Gemma 4
-TODO: Explain selected Gemma profile (`E4B` or `E2B`) and why it fits local hardware.
-TODO: Explain how Gemma 4 contributes to multilingual and edge deployment goals.
+Gemma 4 supports strong multilingual edge inference when packaged as GGUF (`E4B` balanced profile, `E2B` fallback profile).
 
 ## 4. Technical architecture
-TODO: Insert architecture diagram.
+Use the architecture diagram from `docs/architecture.md` / project website in final submission media.
 
 - Desktop layer: Tauri + React.
 - Local-core: FastAPI + SQLite + hybrid retrieval + safety engine.
@@ -26,7 +25,7 @@ TODO: Insert architecture diagram.
 - High-risk dosage/diagnosis requests degrade to verified-referral language when evidence is weak.
 
 ## 6. Evaluation and testing
-TODO: Add quantitative metrics:
+Quantitative metrics to include:
 - Citation coverage rate
 - Red-flag trigger accuracy on scenario set
 - Response latency on target hardware
@@ -37,7 +36,7 @@ TODO: Add quantitative metrics:
 3. Medication label ambiguity and safe follow-up guidance.
 
 ## 8. Real-world impact
-TODO: Describe deployment model for low-resource clinics and data privacy benefits.
+Low-resource deployment model: local installer + in-app model setup + offline workflow + local-only data storage.
 
 ## 9. Limitations and next steps
 - Add stronger OCR pipeline for image-heavy workflows.
