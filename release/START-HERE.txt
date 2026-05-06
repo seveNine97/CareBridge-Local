@@ -1,0 +1,15 @@
+CareBridge Local
+================
+
+For reviewers and normal users:
+
+1. Download CareBridgeLocal-Setup-1.0.0.exe from this folder.
+2. Double-click the installer.
+3. Open CareBridge Local from the Start Menu.
+4. Follow the Runtime Setup Wizard in the app.
+5. Use docs/USER_GUIDE.md for demo scenarios and troubleshooting.
+
+No Python, Node.js, Rust, Docker, or Ollama setup is required for normal use.
+
+Repository:
+https://github.com/seveNine97/CareBridge-Local

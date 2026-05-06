@@ -11,13 +11,14 @@ This folder contains both editable templates and final-ready assets for Kaggle G
 - `demo-runbook.md`: exact commands and fallback flow for live demo day.
 - `release-notes-v1.md`: concise release summary for repository and website.
 - `kaggle-writeup-final.md`: submission-ready final writeup.
+- `kaggle-writeup-copy.md`: one-click copy/paste writeup for Kaggle.
 - `video-script-final.md`: final demo narration script.
 - `judging-mapping-final.md`: final judging criteria mapping.
 - `release-notes-v1.0.0.md`: final release notes.
 
 ## How to use
 
-1. Use `*-final.md` files for direct submission.
+1. Use `kaggle-writeup-copy.md` for the fastest copy/paste Kaggle submission.
 2. Record the demo following `video-script-final.md`.
 3. Capture screenshots and attach according to `media-checklist.md`.
-4. Paste `kaggle-writeup-final.md` into Kaggle and link repo + video + live site.
+4. Link the GitHub repository, release installer/reviewer kit, video, and live site.

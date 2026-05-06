@@ -6,11 +6,12 @@
 - Extended runtime API with auto profile selection, hardware-aware fallback, and status endpoint.
 - Tuned llama.cpp launch presets for E4B/E2B with parameterized start options and readiness probing.
 - Added Windows packaging pipeline for desktop bundle with sidecar backend and runtime resources.
+- Added reviewer kit packaging for non-technical judges: installer, start-here guide, user guide, and paste-ready writeup.
 
 ## Distribution Model
 - Installer includes app shell, local-core sidecar, seed knowledge packs, and llama.cpp runtime.
 - Gemma model is not hard-bundled (size control); users can download in app or import local GGUF.
-- No Ollama dependency for end users.
+- No Python, Node.js, Rust, Docker, or Ollama dependency for end users.
 
 ## Safety and Workflow
 - Rule-based emergency triage remains mandatory and model-independent.

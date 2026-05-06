@@ -8,7 +8,7 @@ CareBridge Local is a Windows-first offline product with two deliverables:
 - Desktop app (Tauri + local FastAPI sidecar): intake, triage, grounded chat, referral export.
 - Public demo site (Next.js): story, architecture, download, and judging walkthrough.
 
-The desktop app works without Ollama and without cloud inference. Users install once, then complete setup in-app: install runtime, download or import Gemma GGUF, and start local inference.
+The key submission upgrade is deployability. Reviewers and field users install a Windows app and complete setup in the interface. They do not need Python, Node.js, Rust, Docker, Ollama, or manual dependency installation.
 
 ## 3. Why Gemma 4
 Gemma 4 provides strong multilingual reasoning while remaining practical for edge deployment through GGUF quantization. We use:
@@ -36,6 +36,8 @@ We validated four dimensions:
 - Clinical flow: case creation -> triage -> grounded chat with citations -> referral export under offline mode.
 - Safety/RAG quality: emergency trigger stability, citation coverage presence, and traceable source metadata.
 
+Repository verification also checks that large installers, model weights, runtime bundles, and build caches are excluded from git while the scripts can rebuild the reviewer kit.
+
 ## 7. Demo scenarios
 1. Pediatric fever with dehydration risk.
 2. Pregnancy danger sign escalation.
@@ -48,3 +50,9 @@ CareBridge Local is designed for privacy-sensitive field settings where internet
 - Expand OCR/multimodal extraction robustness for noisy image inputs.
 - Add localized guideline packs and region-specific medication catalogs.
 - Add opt-in offline quality telemetry bundles for NGO or district-level improvement loops.
+
+## 10. Links
+- Code repository: https://github.com/seveNine97/CareBridge-Local
+- Windows installer: https://github.com/seveNine97/CareBridge-Local/raw/master/release/CareBridgeLocal-Setup-1.0.0.exe
+- User guide: https://github.com/seveNine97/CareBridge-Local/blob/master/docs/USER_GUIDE.md
+- Paste-ready writeup: https://github.com/seveNine97/CareBridge-Local/blob/master/submission/kaggle-writeup-copy.md

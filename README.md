@@ -1,133 +1,104 @@
 # CareBridge Local
 
-CareBridge Local is an offline-first community health worker copilot built for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon). The repository now ships as a real product workspace instead of a single localhost demo: a desktop app shell, a public landing/demo site, and a local FastAPI service that handles triage, knowledge import, retrieval, and referral exports.
+CareBridge Local is a Windows-first, offline community health worker copilot for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon). It is packaged as a real desktop application: reviewers and field users install it once, open the app, and complete model setup inside the interface. They do not need Python, Node.js, Rust, Ollama, or command-line dependency setup.
 
-## What Changed
+## For Reviewers
 
-- `apps/desktop`: Tauri 2 + React + TypeScript shell for the offline desktop product.
-- `apps/web`: Next.js public demo and story site for the competition submission.
-- `services/local-core`: FastAPI service with SQLite persistence, hybrid retrieval, triage rules, runtime abstraction, and export endpoints.
-- `knowledge-packs/base-health`: seeded medical reference pack used for out-of-the-box citations.
-- `legacy/streamlit`: the original Streamlit prototype source preserved for reference.
+1. Open the [GitHub repository](https://github.com/seveNine97/CareBridge-Local).
+2. Download the Windows installer from [`release/CareBridgeLocal-Setup-1.0.0.exe`](release/CareBridgeLocal-Setup-1.0.0.exe).
+3. Run `CareBridgeLocal-Setup-1.0.0.exe`.
+4. Open CareBridge Local and follow the in-app Runtime Setup Wizard.
+5. Try the three demo flows: pediatric fever, pregnancy danger signs, and medication-label uncertainty.
 
-## Product Slice Implemented Here
+If you are reviewing from source instead of a release artifact, use `docs/REVIEWER_QUICKSTART.md`.
 
-- Guided intake flow for patient details, symptoms, vitals, and risk factors.
-- Rule-backed triage output with emergency referral detection, missing-information prompts, and next steps.
-- Knowledge ingestion for `TXT`, `MD`, and `PDF` files plus a seeded offline health pack.
-- Hybrid retrieval using dense-style hashed vectors plus keyword overlap, with citation metadata surfaced to clients.
-- Streaming chat endpoint that returns answer chunks, safety alerts, and citations.
-- Referral export endpoint that writes a printable HTML handout and JSON packet to local storage.
-- Runtime abstraction for `llama.cpp` and `Ollama`, with `llama.cpp` as the production-first provider.
-- In-app runtime setup wizard for downloading/importing models and starting local inference.
+## What The App Does
 
-## Repository Layout
+- Guided intake for patient label, symptoms, risk factors, notes, and local attachments.
+- Rule-first triage that flags emergency referral cases before model generation.
+- Offline knowledge ingestion for `TXT`, `MD`, and `PDF` files.
+- Hybrid retrieval with citations so answers remain grounded in local reference material.
+- Local Gemma chat through `llama.cpp`, with an Ollama adapter kept for development.
+- Referral export that writes a printable HTML handout and JSON packet to local storage.
+- In-app model/runtime setup for downloading or importing GGUF models.
+
+## Architecture
 
 ```text
-repo/
-├─ apps/
-│  ├─ desktop/
-│  └─ web/
-├─ docs/
-├─ knowledge-packs/
-│  └─ base-health/
-├─ legacy/
-│  └─ streamlit/
-└─ services/
-   └─ local-core/
+apps/desktop      Tauri 2 + React desktop product
+apps/web          Next.js public story/reviewer site
+services/local-core
+                  FastAPI sidecar, SQLite, triage, retrieval, exports, runtime manager
+knowledge-packs   Seeded offline medical reference pack
+submission        Kaggle-ready writeup, video script, judging map, release notes
+scripts           Build and reviewer-kit packaging scripts
 ```
+
+The desktop installer bundles the local FastAPI sidecar and seeded knowledge pack. Model weights are not committed to git because of size and licensing constraints; users can download/import them through the app.
+
+## One-Command Release Build
+
+For maintainers preparing a Windows release:
+
+```powershell
+.\scripts\build-desktop.ps1 -LlamaZipPath "C:\path\to\llama.cpp-win-cpu-x64.zip"
+.\scripts\package-reviewer-kit.ps1
+```
+
+This produces:
+
+- NSIS installer: `artifacts/CareBridgeLocal-Setup-1.0.0.exe`
+- MSI installer: `artifacts/CareBridgeLocal_1.0.0_x64_en-US.msi`
+- Reviewer kit zip: `artifacts/CareBridge-Local-Reviewer-Kit-v1.0.0.zip`
+
+The reviewer kit includes the installer plus a `START-HERE.txt` file written for non-technical users.
+
+For the Kaggle submission repository, the NSIS installer is also mirrored under `release/` so judges can download it directly from GitHub without building from source.
 
 ## Local Development
 
-### 1. Python service
+Only developers need these commands.
 
-Create a virtual environment, install the service dependencies, and run the API:
-
-```bash
+```powershell
+# Backend
 cd services/local-core
 python -m venv .venv
-.venv\Scripts\activate
-pip install -e .
+.\.venv\Scripts\activate
+pip install -e .[dev]
 python -m carebridge_local_core
 ```
 
-The API defaults to `http://127.0.0.1:8011`.
-
-### 2. Desktop app
-
-```bash
-cd apps/desktop
+```powershell
+# Desktop frontend
 npm install
-npm run dev
+npm run desktop:dev
 ```
-
-For the full Tauri shell you will also need Rust and the Tauri CLI installed locally.
-
-### 3. Public web app
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-### 4. Optional one-command local dev startup
 
 ```powershell
-cd scripts
-.\run-dev.ps1
+# Public website
+npm run web:dev
 ```
 
-### 5. Model and runtime setup
-
-Use the model helper script:
+## Verification
 
 ```powershell
-cd scripts
-.\setup-models.ps1 -Profile balanced -LlamaServerPath "C:\path\to\llama-server.exe"
+cd services/local-core
+python -m pytest
+cd ..\..
+npm run desktop:build
+npm run web:build
 ```
 
-Manual links and fallback flow are documented in `docs/model-setup.md`.
-
-Desktop users can also complete runtime setup directly inside the app (`Runtime Setup Wizard`).
-
-### 6. Build Windows installer
-
-```powershell
-cd scripts
-.\build-desktop.ps1 -LlamaZipPath "C:\Users\seveNine\Downloads\llama-b8814-bin-win-cpu-x64.zip"
-```
-
-The build script stages:
-- local-core sidecar executable
-- bundled `llama.cpp` runtime binaries
-- seeded knowledge packs
-- Tauri installer targets: NSIS (`.exe`) + MSI (`.msi`)
-
-If your network requires proxy for GitHub downloads (NSIS/WiX), use:
-
-```powershell
-.\build-desktop.ps1 -LlamaZipPath "C:\Users\seveNine\Downloads\llama-b8814-bin-win-cpu-x64.zip" -UseLocalProxy -ProxyUrl "http://127.0.0.1:7890"
-```
-
-## Data and Runtime Notes
-
-- Runtime data is stored under `.carebridge/`.
-- SQLite state lives in `.carebridge/carebridge.db`.
-- Imported uploads and export packets are written beneath `.carebridge/uploads` and `.carebridge/exports`.
-- `llama.cpp` is expected under `.carebridge/runtime/llama.cpp/llama-server(.exe)` unless overridden by environment variables.
-- Model files are expected under `.carebridge/models/`.
-
-## Known Constraints In This Workspace
-
-- Gemma model weights are intentionally not bundled into installers due to size; users download/import in app.
-- Tauri build requires a local Rust toolchain and WebView2-ready Windows build environment.
-
-## Legacy Prototype
-
-The original Streamlit project is preserved under `legacy/streamlit`. It remains useful as a reference for the previous hackathon submission, but it is no longer the primary application path.
+Current expected result: backend tests pass, desktop production build passes, and web production build passes.
 
 ## Submission Assets
 
-- Editable pack: `submission/`
-- Ready zip: `artifacts/carebridge-submission-pack.zip`
+- Paste-ready Kaggle writeup: `submission/kaggle-writeup-copy.md`
+- Final technical writeup: `submission/kaggle-writeup-final.md`
+- Demo script: `submission/video-script-final.md`
+- Judging map: `submission/judging-mapping-final.md`
+- Release notes: `submission/release-notes-v1.0.0.md`
+
+## Safety Note
+
+CareBridge Local is not a diagnosis engine and does not replace clinicians. It is designed to help frontline workers identify red flags, ask missing-information questions, explain next steps, and prepare referral handoffs while keeping data local.
