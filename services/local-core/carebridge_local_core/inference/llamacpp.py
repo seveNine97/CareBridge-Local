@@ -66,13 +66,25 @@ class LlamaCppProvider(InferenceProvider):
         port = "8012"
         command = self._build_command(binary=binary, model_path=resolved_model, profile_name=profile.profile_name, runtime_params=runtime_params)
         self._last_command = command.copy()
+        logs_dir = settings.home_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_handle = (logs_dir / "llama-server.log").open("a", encoding="utf-8")
+        startupinfo = None
+        creationflags = 0
+        if platform.system().lower().startswith("win"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         self._process = subprocess.Popen(
             command,
             cwd=str(settings.llama_dir),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=log_handle,
+            stderr=log_handle,
+            startupinfo=startupinfo,
+            creationflags=creationflags,
         )
-        ready, detail = self._wait_until_ready(f"http://{host}:{port}")
+        ready, detail = self._wait_until_ready(f"http://{host}:{port}", process=self._process)
         return RuntimeState(
             active_profile=profile,
             status="ready" if ready else "degraded",
@@ -158,16 +170,21 @@ class LlamaCppProvider(InferenceProvider):
         return command
 
     @staticmethod
-    def _wait_until_ready(endpoint: str, timeout_seconds: float = 45.0) -> tuple[bool, str]:
+    def _wait_until_ready(endpoint: str, process: subprocess.Popen[str] | None, timeout_seconds: float = 180.0) -> tuple[bool, str]:
         deadline = time.perf_counter() + timeout_seconds
         last_error = "waiting"
         with httpx.Client(timeout=5) as client:
             while time.perf_counter() < deadline:
+                if process and process.poll() is not None:
+                    return False, f"llama.cpp exited before ready with code {process.returncode}. Check logs/llama-server.log."
                 try:
-                    response = client.get(f"{endpoint}/health")
-                    if response.status_code < 500:
-                        return True, "llama.cpp launched and health endpoint is ready."
+                    for path in ("/health", "/v1/models"):
+                        response = client.get(f"{endpoint}{path}")
+                        if response.status_code < 500:
+                            return True, "llama.cpp launched and OpenAI-compatible endpoint is ready."
                 except Exception as exc:  # noqa: BLE001
                     last_error = str(exc)
-                time.sleep(0.4)
+                time.sleep(1.0)
+        if process and process.poll() is None:
+            return False, f"llama.cpp is still loading after {int(timeout_seconds)}s: {last_error}. Try E2B or wait and press Start Runtime again."
         return False, f"llama.cpp launched but not ready within timeout: {last_error}"

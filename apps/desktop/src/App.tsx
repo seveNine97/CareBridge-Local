@@ -92,8 +92,8 @@ export default function App() {
 
   useEffect(() => {
     refreshSetupState()
-      .then(() => setStatus("Ready for offline questions"))
-      .catch(() => setStatus("Starting local-core. If this lasts more than a few seconds, reopen the app."));
+      .then(() => setStatus("Ready"))
+      .catch(() => setStatus("Starting local service. Reopen the app if this takes more than a few seconds."));
   }, []);
 
   useEffect(() => {
@@ -111,19 +111,20 @@ export default function App() {
   }, [downloadStatus]);
 
   const urgencyClass = useMemo(() => {
-    if (!triage) return "chip chip-neutral";
-    if (triage.urgency === "emergency_referral") return "chip chip-danger";
-    if (triage.urgency === "urgent_visit") return "chip chip-warning";
-    return "chip chip-safe";
+    if (!triage) return "chip neutral";
+    if (triage.urgency === "emergency_referral") return "chip danger";
+    if (triage.urgency === "urgent_visit") return "chip warning";
+    return "chip safe";
   }, [triage]);
 
   const installedModels = (catalog?.models ?? []).filter((item) => item.installed);
   const balancedModel = (catalog?.models ?? []).find((item) => item.profile_name === "balanced");
   const setupReady = Boolean(catalog?.runtime_binary_present && installedModels.length > 0);
   const runtimeReady = runtimeStatus?.status === "ready" || runtimeStatus?.status === "running";
+  const runtimeLabel = runtimeReady ? "Runtime ready" : setupReady ? "Ready to start" : "Setup required";
 
   async function handleStartRuntime() {
-    setStatus("Starting local Gemma runtime...");
+    setStatus("Starting local Gemma runtime. E4B may take a few minutes on first load...");
     try {
       const response = await startRuntime(modelProfile);
       setStatus(response.message ?? "Runtime started.");
@@ -223,7 +224,7 @@ export default function App() {
       return;
     }
     setChatText("");
-    setStatus(runtimeReady ? "Streaming local Gemma response..." : "Answering with local safety and retrieval fallback...");
+    setStatus(runtimeReady ? "Streaming local Gemma response..." : "Using safety and retrieval fallback until runtime is ready...");
     try {
       await streamChat(
         caseRecord?.case_id ?? null,
@@ -252,117 +253,121 @@ export default function App() {
   }
 
   return (
-    <main className="layout">
-      <section className="ask-hero">
+    <main className="shell">
+      <header className="topbar">
         <div>
-          <p className="kicker">Offline Gemma care assistant</p>
-          <h1>Ask CareBridge</h1>
-          <p className="muted hero-copy">Start with a plain-language medical workflow question. Cases, triage, exports, and setup are available below when needed.</p>
+          <p className="eyebrow">CareBridge Local</p>
+          <h1>Offline clinical Q&A</h1>
         </div>
-        <div className={runtimeReady ? "runtime-pill ready" : "runtime-pill"}>
-          {runtimeReady ? "Runtime ready" : setupReady ? "Runtime not started" : "Setup needed"}
+        <div className={runtimeReady ? "status-pill ready" : "status-pill"}>{runtimeLabel}</div>
+      </header>
+
+      <section className="workspace">
+        <div className="assistant-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Ask first</p>
+              <h2>CareBridge Assistant</h2>
+            </div>
+            <span className={urgencyClass}>{triage ? triage.urgency : "triage pending"}</span>
+          </div>
+          <textarea
+            className="question-input"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            rows={5}
+            placeholder="Describe the situation in plain language..."
+          />
+          <div className="sample-grid">
+            {sampleQuestions.map((sample) => (
+              <button className="ghost-button" key={sample} onClick={() => setQuestion(sample)}>
+                {sample}
+              </button>
+            ))}
+          </div>
+          <button className="primary-action" onClick={handleAsk}>
+            Ask offline assistant
+          </button>
+          <pre className="answer-box">{chatText || "The answer will appear here. When the local runtime is not ready, CareBridge still returns safety triage and local citation guidance."}</pre>
         </div>
+
+        <aside className="side-panel">
+          <div className="metric-card">
+            <span>Knowledge chunks</span>
+            <strong>{health?.knowledge_chunk_count ?? 0}</strong>
+          </div>
+          <div className="metric-card">
+            <span>Saved cases</span>
+            <strong>{health?.case_count ?? 0}</strong>
+          </div>
+          <div className="summary-card">
+            <span>Patient summary</span>
+            <p>{triage?.summary_for_patient ?? "No active answer yet."}</p>
+          </div>
+        </aside>
       </section>
 
-      <section className="chat-surface">
-        <textarea
-          className="question-input"
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          rows={5}
-          placeholder="Ask a question, for example: A child has fever, vomiting, and is very sleepy. What should I do next?"
-        />
-        <div className="quick-row">
-          {sampleQuestions.map((sample) => (
-            <button className="sample-button" key={sample} onClick={() => setQuestion(sample)}>
-              {sample}
-            </button>
-          ))}
+      <section className="setup-card">
+        <div className="section-title">
+          <div>
+            <p className="eyebrow">Local model</p>
+            <h2>Runtime setup</h2>
+          </div>
+          <p>{runtimeStatus?.status ?? "unknown"}</p>
         </div>
-        <button className="ask-button" onClick={handleAsk}>
-          Ask Offline Assistant
-        </button>
-        <pre className="answer-box">{chatText || "CareBridge answer will appear here, with safety triage metadata and citations when available."}</pre>
-      </section>
-
-      <section className="insight-strip">
-        <article>
-          <span className={urgencyClass}>{triage ? triage.urgency : "triage pending"}</span>
-          <p>{triage?.summary_for_patient ?? "Ask a question to generate triage-aware guidance."}</p>
-        </article>
-        <article>
-          <strong>Local data</strong>
-          <p>
-            Chunks: {health?.knowledge_chunk_count ?? 0} | Cases: {health?.case_count ?? 0}
-          </p>
-        </article>
-      </section>
-
-      <details className="panel" open={!setupReady}>
-        <summary>Runtime Setup</summary>
-        <p className="muted">
-          Runtime binary: {catalog?.runtime_binary_present ? "installed" : "missing"} | Models installed: {installedModels.length}
-        </p>
-        <div className="wizard-row">
-          <label className="file-picker">
-            Install llama.cpp zip
+        <div className="setup-grid">
+          <label>
+            Runtime zip
             <input type="file" accept=".zip" onChange={(event) => setRuntimeArchive(event.target.files?.[0] ?? null)} />
           </label>
-          <button onClick={handleInstallRuntimeArchive}>Install Runtime</button>
-        </div>
-        <div className="wizard-row">
-          <button onClick={() => handleDownloadModel("gemma4-e4b-q4km")}>
-            Download E4B ({balancedModel ? formatBytes(balancedModel.file_size_bytes) : "unknown"})
-          </button>
-          <button onClick={() => handleDownloadModel("gemma4-e2b-q4km")}>Download E2B</button>
-        </div>
-        <div className="wizard-row">
-          <label className="file-picker">
-            Import local GGUF
+          <button onClick={handleInstallRuntimeArchive}>Install runtime</button>
+          <label>
+            Local GGUF model
             <input type="file" accept=".gguf" onChange={(event) => setModelFile(event.target.files?.[0] ?? null)} />
           </label>
-          <button onClick={handleImportModel}>Import Model</button>
-        </div>
-        {downloadStatus ? (
-          <div className="download-card">
-            <p>
-              Download status: {downloadStatus.status} {Math.round(downloadStatus.progress * 100)}%
-            </p>
-            <p className="muted">
-              {formatBytes(downloadStatus.downloaded_bytes)} / {formatBytes(downloadStatus.total_bytes)} | Speed:{" "}
-              {formatBytes(downloadStatus.speed_bps)} /s
-            </p>
-            {downloadStatus.error ? <p className="error-text">{downloadStatus.error}</p> : null}
-          </div>
-        ) : null}
-        <div className="wizard-row">
+          <button onClick={handleImportModel}>Import model</button>
           <label>
             Runtime profile
             <select value={modelProfile} onChange={(event) => setModelProfile(event.target.value)}>
               <option value="auto">Auto</option>
-              <option value="balanced">Balanced (E4B)</option>
-              <option value="compatibility">Compatibility (E2B)</option>
+              <option value="balanced">Balanced E4B</option>
+              <option value="compatibility">Compatibility E2B</option>
             </select>
           </label>
           <button disabled={!setupReady} onClick={handleStartRuntime}>
-            Start Runtime
+            Start runtime
           </button>
         </div>
-        <p className="muted">
-          Runtime status: {runtimeStatus?.status ?? "unknown"} {runtimeStatus?.detail ? `| ${runtimeStatus.detail}` : ""}
+        <div className="download-row">
+          <button className="secondary-button" onClick={() => handleDownloadModel("gemma4-e4b-q4km")}>
+            Download E4B {balancedModel ? `(${formatBytes(balancedModel.file_size_bytes)})` : ""}
+          </button>
+          <button className="secondary-button" onClick={() => handleDownloadModel("gemma4-e2b-q4km")}>
+            Download E2B
+          </button>
+        </div>
+        {downloadStatus ? (
+          <div className="progress-card">
+            <strong>
+              {downloadStatus.status} {Math.round(downloadStatus.progress * 100)}%
+            </strong>
+            <span>
+              {formatBytes(downloadStatus.downloaded_bytes)} / {formatBytes(downloadStatus.total_bytes)}
+            </span>
+            {downloadStatus.error ? <p className="error-text">{downloadStatus.error}</p> : null}
+          </div>
+        ) : null}
+        <p className="detail-line">
+          {runtimeStatus?.detail ?? "Install runtime and import a GGUF model before starting local inference."}
         </p>
-      </details>
+      </section>
 
-      <section className="grid secondary-grid">
-        <details className="panel">
-          <summary>Clinical Case Tools</summary>
+      <section className="tool-grid">
+        <details className="tool-card">
+          <summary>Clinical case tools</summary>
           <label>
             Patient label
-            <input
-              value={patient.patient_label}
-              onChange={(event) => setPatient({ ...patient, patient_label: event.target.value })}
-              placeholder="e.g. Child with fever"
-            />
+            <input value={patient.patient_label} onChange={(event) => setPatient({ ...patient, patient_label: event.target.value })} placeholder="Child with fever" />
           </label>
           <label>
             Symptoms
@@ -377,7 +382,7 @@ export default function App() {
                     .filter(Boolean)
                 })
               }
-              placeholder="fever, shortness of breath"
+              placeholder="fever, vomiting"
             />
           </label>
           <label>
@@ -398,43 +403,36 @@ export default function App() {
           </label>
           <label>
             Notes
-            <textarea
-              value={patient.notes}
-              onChange={(event) => setPatient({ ...patient, notes: event.target.value })}
-              rows={4}
-              placeholder="Observations from field worker"
-            />
+            <textarea value={patient.notes} onChange={(event) => setPatient({ ...patient, notes: event.target.value })} rows={4} />
           </label>
           <div className="button-row">
-            <button onClick={handleCreateCase}>Save Case</button>
-            <button onClick={handleRunTriage}>Run Triage</button>
-            <button onClick={handleExport}>Export Referral</button>
+            <button onClick={handleCreateCase}>Save case</button>
+            <button onClick={handleRunTriage}>Run triage</button>
+            <button onClick={handleExport}>Export referral</button>
           </div>
-          <p className="muted">{caseRecord ? `Active case: ${caseRecord.case_id}` : "No saved case. Quick chat still works."}</p>
         </details>
 
-        <details className="panel">
-          <summary>Knowledge Import</summary>
+        <details className="tool-card">
+          <summary>Knowledge import</summary>
           <input
             type="file"
             multiple
             onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
             accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.webp"
           />
-          <button onClick={handleImportKnowledge}>Import Files</button>
+          <button onClick={handleImportKnowledge}>Import files</button>
           <p className="muted">{selectedFiles.length ? `${selectedFiles.length} files selected` : "No files selected"}</p>
-          <h3>Citations</h3>
-          <ul>
+          <ul className="citation-list">
             {(triage?.citations ?? []).map((citation) => (
               <li key={citation.citation_id}>
-                {citation.source_title} ({citation.score})
+                {citation.source_title} <span>{citation.score}</span>
               </li>
             ))}
           </ul>
         </details>
       </section>
 
-      <footer className="status">{status}</footer>
+      <footer className="footer-status">{status}</footer>
     </main>
   );
 }

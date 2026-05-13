@@ -22,6 +22,7 @@ If you are reviewing from source instead of a release artifact, use `docs/REVIEW
 - Local Gemma chat through `llama.cpp`, with an Ollama adapter kept for development.
 - Referral export that writes a printable HTML handout and JSON packet to local storage.
 - In-app model/runtime setup for downloading or importing GGUF models.
+- Hidden `llama-server.exe` launch with readiness checks and local logs, so users do not see backend terminals.
 
 ## Architecture
 
@@ -91,6 +92,10 @@ npm run web:build
 ```
 
 Current expected result: backend tests pass, desktop production build passes, and web production build passes.
+
+## Runtime Troubleshooting
+
+If `Start runtime` reports that llama.cpp is not ready, E4B may still be loading. Wait and press `Start runtime` again, or use E2B on lower-memory hardware. Logs are stored at `%LOCALAPPDATA%\CareBridgeLocal\logs\llama-server.log`.
 
 ## Submission Assets
 

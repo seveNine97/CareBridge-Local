@@ -18,7 +18,7 @@ You do not need to install Python, Node.js, Rust, Docker, Ollama, or any develop
 4. If the reviewer kit includes a `llama.cpp` runtime bundle, import it with **Install Runtime**.
 5. Use **Download E4B** for the recommended Gemma profile, or **Download E2B** on lower-memory machines.
 6. If you already have a GGUF model file, use **Import local GGUF** instead.
-7. Choose **Auto** or **Balanced (E4B)**, then click **Start Runtime**.
+7. Choose **Balanced E4B** if you imported `gemma-4-E4B-it-Q4_K_M.gguf`, then click **Start runtime**. First launch can take several minutes.
 
 The app stores all local data under the user profile, not in a cloud account.
 
@@ -51,4 +51,6 @@ CareBridge Local stores cases, imported documents, models, and exports on the lo
 - If the app says it cannot reach `127.0.0.1:8011`, close and reopen CareBridge Local.
 - If **Start Runtime** is disabled, install/import a runtime and model first.
 - If model download is slow, import a GGUF model file manually.
-- If the machine has limited memory, use the E2B compatibility model.
+- If runtime status says `degraded` and mentions timeout, wait one minute and press **Start runtime** again. E4B is a large model and may still be loading.
+- If E4B repeatedly fails, use the E2B compatibility model or close any old `llama-server.exe` process from Task Manager.
+- Runtime logs are written to `%LOCALAPPDATA%\CareBridgeLocal\logs\llama-server.log`.
