@@ -94,6 +94,14 @@ export interface RuntimeStatusResponse {
   status: string;
   detail: string;
   endpoint?: string;
+  active_profile?: {
+    runtime: string;
+    profile_name: string;
+    model_name: string;
+    quantization: string;
+    estimated_memory_gb: number;
+    status: string;
+  };
   runtime_binary_present: boolean;
   runtime_binary_path: string;
   meta?: Record<string, unknown>;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Iterator
 
 from carebridge_local_core.models import ModelProfile, RuntimeState
 
@@ -25,3 +26,6 @@ class InferenceProvider:
 
     def generate(self, request: GenerationRequest, state: RuntimeState) -> str:
         raise NotImplementedError
+
+    def stream_generate(self, request: GenerationRequest, state: RuntimeState) -> Iterator[str]:
+        yield self.generate(request, state)

@@ -120,7 +120,8 @@ export async function streamChat(
   caseId: string | null,
   question: string,
   onChunk: (text: string) => void,
-  onMeta: (payload: { triage: TriageAssessment; citations: unknown[] }) => void,
+  onMeta: (payload: { triage: TriageAssessment; citations: unknown[]; runtime?: RuntimeStatusResponse }) => void,
+  onRuntime: (payload: RuntimeStatusResponse) => void,
   patient?: PatientCaseCreate
 ) {
   const body = caseId ? { case_id: caseId, question } : { patient, question };
@@ -144,9 +145,18 @@ export async function streamChat(
     for (const part of parts) {
       if (!part.startsWith("data: ")) continue;
       const jsonText = part.replace(/^data:\s*/, "");
-      const payload = JSON.parse(jsonText) as { type: string; text?: string; triage?: TriageAssessment; citations?: unknown[] };
+      const payload = JSON.parse(jsonText) as {
+        type: string;
+        text?: string;
+        triage?: TriageAssessment;
+        citations?: unknown[];
+        runtime?: RuntimeStatusResponse;
+      };
       if (payload.type === "metadata" && payload.triage) {
-        onMeta({ triage: payload.triage, citations: payload.citations ?? [] });
+        onMeta({ triage: payload.triage, citations: payload.citations ?? [], runtime: payload.runtime });
+      }
+      if (payload.type === "runtime" && payload.runtime) {
+        onRuntime(payload.runtime);
       }
       if (payload.type === "chunk" && payload.text) {
         onChunk(payload.text);

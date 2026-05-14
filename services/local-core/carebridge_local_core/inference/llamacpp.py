@@ -4,6 +4,8 @@ import os
 import platform
 import subprocess
 import time
+import json
+from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
@@ -111,6 +113,9 @@ class LlamaCppProvider(InferenceProvider):
         }
 
     def generate(self, request: GenerationRequest, state: RuntimeState) -> str:
+        return "".join(self.stream_generate(request, state))
+
+    def stream_generate(self, request: GenerationRequest, state: RuntimeState) -> Iterator[str]:
         if state.endpoint is None:
             raise RuntimeError("llama.cpp endpoint is not configured")
         url = f"{state.endpoint.rstrip('/')}/v1/chat/completions"
@@ -122,12 +127,26 @@ class LlamaCppProvider(InferenceProvider):
             ],
             "temperature": 0.2,
             "top_p": 0.9,
+            "max_tokens": 384,
+            "stream": True,
         }
         with httpx.Client(timeout=80) as client:
-            response = client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-        return str(data["choices"][0]["message"]["content"])
+            with client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("data: "):
+                        line = line.removeprefix("data: ").strip()
+                    if line == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    token = data.get("choices", [{}])[0].get("delta", {}).get("content")
+                    if token:
+                        yield str(token)
 
     @staticmethod
     def _build_command(
@@ -138,8 +157,8 @@ class LlamaCppProvider(InferenceProvider):
     ) -> list[str]:
         core_count = max((os.cpu_count() or 4) // 2, 2)
         defaults = {
-            "balanced": {"ctx_size": 4096, "threads": core_count, "threads_batch": core_count, "batch_size": 512, "ubatch_size": 256},
-            "compatibility": {"ctx_size": 4096, "threads": core_count, "threads_batch": core_count, "batch_size": 768, "ubatch_size": 384},
+            "balanced": {"ctx_size": 2048, "threads": core_count, "threads_batch": core_count, "batch_size": 768, "ubatch_size": 384},
+            "compatibility": {"ctx_size": 2048, "threads": core_count, "threads_batch": core_count, "batch_size": 512, "ubatch_size": 256},
         }
         selected = defaults.get(profile_name, defaults["compatibility"])
         command = [

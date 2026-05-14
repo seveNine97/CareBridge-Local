@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes
 import os
 import platform
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -138,19 +139,26 @@ class RuntimeManager:
         return self.state
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
+        return "".join(self.stream_generate(system_prompt=system_prompt, user_prompt=user_prompt))
+
+    def stream_generate(self, system_prompt: str, user_prompt: str) -> Iterator[str]:
         request = GenerationRequest(system_prompt=system_prompt, user_prompt=user_prompt)
         runtime = self.state.active_profile.runtime if self.state.active_profile else RuntimeKind.mock
         try:
             if runtime == RuntimeKind.llama_cpp and self.state.status == "ready":
-                return self.llama_provider.generate(request, self.state)
+                yield from self.llama_provider.stream_generate(request, self.state)
+                return
             if runtime == RuntimeKind.ollama and self.state.status == "ready":
-                return self.ollama_provider.generate(request, self.state)
+                yield from self.ollama_provider.stream_generate(request, self.state)
+                return
         except Exception as exc:  # noqa: BLE001
             self.state.status = "degraded"
             self.state.detail = f"Runtime degraded after generation error: {exc}"
-        return (
-            "CareBridge fallback response: local model runtime is unavailable. "
-            "Continue with rule-based triage and evidence citations, then verify at the nearest clinic."
+        reason = self.state.detail or "Runtime is not ready. Start runtime after installing llama.cpp and a GGUF model."
+        yield (
+            "CareBridge safety response: local model generation is not available right now. "
+            f"Reason: {reason} "
+            "Use the rule-based triage, red flags, and cited guidance below, then verify at the nearest clinic."
         )
 
     def status_payload(self) -> dict:
