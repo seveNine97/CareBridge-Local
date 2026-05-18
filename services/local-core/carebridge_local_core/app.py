@@ -179,37 +179,89 @@ async def models_import(file: UploadFile = File(...)) -> ModelImportResponse:
         filename=file.filename,
         destination_path=str(destination),
         bytes_written=destination.stat().st_size,
-        message="Model imported successfully.",
+        message=(
+            "Model imported successfully."
+            if destination.stat().st_size < 500 * 1024 * 1024
+            else "Model imported successfully. Note: imported file is large; uploads this big may be slow or fail in-browser. Consider using the "
+            "Download > Import from Downloads helper or the setup script for very large models."
+        ),
     )
 
 
 @app.post("/runtime/install-llama")
 async def runtime_install_llama(file: UploadFile = File(...)) -> dict:
-    runtime_zip = settings.llama_dir / file.filename
-    with runtime_zip.open("wb") as handle:
+    # Save uploaded file to llama_dir
+    uploaded_path = settings.llama_dir / file.filename
+    uploaded_path.parent.mkdir(parents=True, exist_ok=True)
+    with uploaded_path.open("wb") as handle:
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
             handle.write(chunk)
 
-    extract_root = settings.llama_dir / "bundle"
-    if extract_root.exists():
-        shutil.rmtree(extract_root)
-    extract_root.mkdir(parents=True, exist_ok=True)
-    shutil.unpack_archive(str(runtime_zip), str(extract_root))
-    runtime_zip.unlink(missing_ok=True)
-
-    binary = next((path for path in extract_root.rglob("llama-server.exe")), None)
-    if binary is None:
-        raise HTTPException(status_code=400, detail="llama-server.exe not found in uploaded archive.")
-
+    # If the user uploaded an executable directly, accept it.
+    lower_name = uploaded_path.name.lower()
     target_binary = settings.llama_dir / "llama-server.exe"
-    shutil.copy2(binary, target_binary)
-    for dll in binary.parent.glob("*.dll"):
-        shutil.copy2(dll, settings.llama_dir / dll.name)
+    try:
+        if lower_name.endswith(".exe") or lower_name.startswith("llama-server"):
+            shutil.copy2(uploaded_path, target_binary)
+            uploaded_path.unlink(missing_ok=True)
+            return {"status": "ready", "binary_path": str(target_binary)}
 
-    return {"status": "ready", "binary_path": str(target_binary)}
+        # Otherwise attempt to unpack archive and search for the binary case-insensitively
+        extract_root = settings.llama_dir / "bundle"
+        if extract_root.exists():
+            shutil.rmtree(extract_root)
+        extract_root.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.unpack_archive(str(uploaded_path), str(extract_root))
+        except (shutil.ReadError, ValueError):
+            # Not an archive we can unpack
+            raise HTTPException(status_code=400, detail="Uploaded file is not a supported archive or executable.")
+        finally:
+            uploaded_path.unlink(missing_ok=True)
+
+        # Search case-insensitively for llama-server executable
+        binary = next((p for p in extract_root.rglob("*") if p.is_file() and p.name.lower().startswith("llama-server")), None)
+        if binary is None:
+            found = [p.name for p in extract_root.rglob("*") if p.is_file()]
+            raise HTTPException(status_code=400, detail=f"llama-server binary not found in uploaded archive. Files found: {found}")
+
+        shutil.copy2(binary, target_binary)
+        # Copy any DLLs next to the discovered binary
+        for dll in binary.parent.glob("*.dll"):
+            shutil.copy2(dll, settings.llama_dir / dll.name)
+
+        return {"status": "ready", "binary_path": str(target_binary)}
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/models/import-from-downloads")
+async def models_import_from_downloads() -> dict:
+    """Scan the current user's Downloads and Desktop folders for known catalog filenames and copy them into models dir.
+    This avoids uploading multi-GB files through the browser.
+    """
+    home = Path.home()
+    candidates = [home / "Downloads", home / "Desktop"]
+    found = []
+    for entry in model_manager.catalog():
+        expected = entry.filename
+        for base in candidates:
+            candidate = base / expected
+            if candidate.exists():
+                try:
+                    model_id, dest = model_manager.import_model_file(candidate)
+                    found.append({"model_id": model_id, "filename": expected, "destination": str(dest)})
+                except Exception as exc:  # noqa: BLE001
+                    # continue scanning others
+                    continue
+    if not found:
+        raise HTTPException(status_code=404, detail="No known model files found in Downloads or Desktop.")
+    return {"imported": found}
 
 
 @app.post("/cases", response_model=PatientCase)

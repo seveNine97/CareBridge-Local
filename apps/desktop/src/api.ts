@@ -105,6 +105,10 @@ export async function importModelFile(file: File) {
   );
 }
 
+export async function importModelsFromDownloads() {
+  return ensureOk(await fetch(`${API_BASE}/models/import-from-downloads`, { method: "POST" }));
+}
+
 export async function installLlamaRuntime(archive: File) {
   const formData = new FormData();
   formData.append("file", archive);

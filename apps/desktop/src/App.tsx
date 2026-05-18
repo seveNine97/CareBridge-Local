@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   Archive,
@@ -30,6 +30,7 @@ import {
   getModelDownloadStatus,
   importKnowledge,
   importModelFile,
+  importModelsFromDownloads,
   installLlamaRuntime,
   runTriage,
   startRuntime,
@@ -646,16 +647,45 @@ export default function App() {
                       Start runtime
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => handleDownloadModel("gemma4-e4b-q4km")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 font-bold">
-                      <Download size={17} />
-                      Download E4B {balancedModel ? `(${formatBytes(balancedModel.file_size_bytes)})` : ""}
-                    </button>
-                    <button onClick={() => handleDownloadModel("gemma4-e2b-q4km")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 font-bold">
-                      <Download size={17} />
-                      Download E2B
-                    </button>
-                  </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          if (balancedModel?.download_url) window.open(balancedModel.download_url, "_blank");
+                          else handleDownloadModel("gemma4-e4b-q4km");
+                        }}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 font-bold"
+                      >
+                        <Download size={17} />
+                        Download E4B {balancedModel ? `(${formatBytes(balancedModel.file_size_bytes)})` : ""}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const e2b = catalog?.models?.find((m) => m.model_id === "gemma4-e2b-q4km");
+                          if (e2b?.download_url) window.open(e2b.download_url, "_blank");
+                          else handleDownloadModel("gemma4-e2b-q4km");
+                        }}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 font-bold"
+                      >
+                        <Download size={17} />
+                        Download E2B
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setStatus("Looking for downloaded models in Downloads/Desktop...");
+                          try {
+                            const resp = await importModelsFromDownloads();
+                            setStatus(`Imported: ${JSON.stringify(((resp as any).imported ?? resp) as any)}`);
+                            await refreshSetupState();
+                          } catch (err) {
+                            setStatus(`Import from Downloads failed: ${(err as Error).message}`);
+                          }
+                        }}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 font-bold"
+                      >
+                        <Folder size={17} />
+                        Import from Downloads
+                      </button>
+                    </div>
                   {downloadStatus ? (
                     <p className="rounded-lg bg-slate-50 p-3 text-sm">
                       {downloadStatus.status} {Math.round(downloadStatus.progress * 100)}% - {formatBytes(downloadStatus.downloaded_bytes)} /{" "}

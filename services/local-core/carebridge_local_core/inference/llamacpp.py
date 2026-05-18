@@ -156,9 +156,10 @@ class LlamaCppProvider(InferenceProvider):
         runtime_params: dict[str, int | float | str],
     ) -> list[str]:
         core_count = max((os.cpu_count() or 4) // 2, 2)
+        # Use smaller batch sizes by default to prioritize low latency streaming on consumer devices.
         defaults = {
-            "balanced": {"ctx_size": 2048, "threads": core_count, "threads_batch": core_count, "batch_size": 768, "ubatch_size": 384},
-            "compatibility": {"ctx_size": 2048, "threads": core_count, "threads_batch": core_count, "batch_size": 512, "ubatch_size": 256},
+            "balanced": {"ctx_size": 2048, "threads": core_count, "threads_batch": core_count, "batch_size": 128, "ubatch_size": 8},
+            "compatibility": {"ctx_size": 2048, "threads": core_count, "threads_batch": core_count, "batch_size": 64, "ubatch_size": 4},
         }
         selected = defaults.get(profile_name, defaults["compatibility"])
         command = [
